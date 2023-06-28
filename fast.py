@@ -2,8 +2,9 @@ import subprocess
 import time
 import threading
 import sys
-from loguru import logger
-from itertools import cycle, product
+from util.styler import TextStyler as st
+from util.log import logger
+from itertools import product
 
 EXPLOITS_FILE = 'exploits.txt'
 TICK_DURATION = 10
@@ -15,7 +16,7 @@ def main():
     exploits = load_exploits()
 
     while True:
-        logger.info(f'Started tick {tick_counter}.')
+        logger.info(f'Started tick {st.bold(tick_counter)} ⌛')
         for exploit in exploits:
             threading.Thread(target=run_exploit, args=exploit).start()
 
@@ -24,20 +25,19 @@ def main():
 
 
 def run_exploit(exploit, targets):
-    logger.info(f'Running {exploit} at {len(targets)} targets.')
+    logger.info(f'Running {st.bold(exploit)} at {st.bold(len(targets))} targets')
 
-    with open('flags.txt', 'a') as flags_file:
-        subprocess.run(
-            ['python3', 'runner.py', '--exploit', exploit] + targets, stdout=flags_file, text=True)
+    subprocess.run(
+        ['python3', 'runner.py', '--exploit', exploit] + targets, text=True)
 
-    logger.success(f'Exploit {exploit} completed.')
+    logger.info(f'Exploit {exploit} finished.')
 
 
 def load_exploits():
     logger.info('Loading exploits...')
     with open(EXPLOITS_FILE, 'r') as file:
         exploits = [parse_exploit_entry(line) for line in file.readlines()]
-        logger.success(f'Loaded {len(exploits)} exploits.')
+        logger.success(f'Loaded {len(exploits)} exploits')
         return exploits
 
 
@@ -70,12 +70,5 @@ def ascii():
 
 
 if __name__ == '__main__':
-    config = {
-        "handlers": [
-            {"sink": sys.stdout,
-                "format": "<d>{time:HH:mm:ss}</d> <level>{level: >8} |</level> {message}"},
-        ],
-    }
-    logger.configure(**config)
     ascii()
     main()
