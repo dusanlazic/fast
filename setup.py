@@ -8,7 +8,8 @@ setup(
     author_email="lazicdusan1104@gmail.com",
     url="https://github.com/dusanlazic/fast",
     install_requires=[
-        'loguru'
+        'loguru',
+        'pyyaml'
     ],
     packages=find_packages(),
     py_modules=['fast', 'runner'],

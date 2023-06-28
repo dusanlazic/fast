@@ -26,14 +26,30 @@ myexploits/
 ```
 
 
-1. In the same directory, create a file called `exploits.txt`. This file will contain the names of your exploits and their target IPs. Each line should begin with the name of an exploit (with or without .py), followed by the IPs of its targets. IP ranges can be expressed using hyphens. For example:
+1. In the same directory, create a file called `fast.yaml`. This file will contain configuration, names of your exploits and their target IPs. IP ranges can be expressed using hyphens. For example:
 
-```
-alpha 172.20.0.2-7
-bravo 172.20.0.2 172.20.0.5-7
-charlie 172.20.0.3
-delta 172.20.0.2 172.20.0.5-7
-echo 172.20.0.2-7
+```yaml
+config:
+  tick_duration: 60  # Tick duration in seconds
+
+exploits:
+  - name: alpha
+    targets: 
+      - 172.20.0.2-7
+  - name: bravo
+    targets: 
+      - 172.20.0.2
+      - 172.20.0.5-7
+  - name: charlie
+    targets: 
+      - 172.20.0.3
+  - name: delta
+    targets: 
+      - 172.20.0.2
+      - 172.20.0.5-7
+  - name: echo
+    targets: 
+      - 172.20.0.2-7
 ```
 
 3. Run fast

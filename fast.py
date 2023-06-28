@@ -2,32 +2,35 @@ import subprocess
 import time
 import threading
 import os
+import yaml
 from util.styler import TextStyler as st
 from util.log import logger
 from itertools import product
 
-TICK_DURATION = 10
+config = []
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 RUNNER_PATH = os.path.join(DIR_PATH, 'runner.py')
 
 
 def main():
     splash()
-    tick_counter = 0
-
+    load_config()
     exploits = load_exploits()
+
+    tick_counter = 0
 
     while True:
         logger.info(f'Started tick {st.bold(tick_counter)} ⌛')
         for exploit in exploits:
             threading.Thread(target=run_exploit, args=exploit).start()
 
-        time.sleep(TICK_DURATION)
+        time.sleep(config['tick_duration'])
         tick_counter += 1
 
 
 def run_exploit(exploit, targets):
-    logger.info(f'Running {st.bold(exploit)} at {st.bold(len(targets))} target{"s" if len(targets) > 1 else ""}')
+    logger.info(
+        f'Running {st.bold(exploit)} at {st.bold(len(targets))} target{"s" if len(targets) > 1 else ""}')
 
     subprocess.run(
         ['python3', RUNNER_PATH, '--exploit', exploit] + targets, text=True)
@@ -37,8 +40,10 @@ def run_exploit(exploit, targets):
 
 def load_exploits():
     logger.info('Loading exploits...')
-    with open('exploits.txt', 'r') as file:
-        exploits = [parse_exploit_entry(line) for line in file.readlines()]
+    with open('fast.yaml', 'r') as file:
+        data = yaml.safe_load(file)
+        exploits = [parse_exploit_entry(exploit)
+                    for exploit in data['exploits']]
         logger.success(f'Loaded {len(exploits)} exploits')
         return exploits
 
@@ -50,11 +55,21 @@ def expand_ip_range(ip_range):
     return ['.'.join(map(str, octets)) for octets in product(*ranges)]
 
 
-def parse_exploit_entry(line):
-    parts = line.split()
-    exploit = parts[0]
-    ips = [ip for ip_range in parts[1:] for ip in expand_ip_range(ip_range)]
+def parse_exploit_entry(entry):
+    exploit = entry['name']
+    ips = [ip for ip_range in entry['targets']
+           for ip in expand_ip_range(ip_range)]
     return (exploit, ips)
+
+
+def load_config():
+    global config
+
+    logger.info('Configuring...')
+    with open('fast.yaml', 'r') as file:
+        data = yaml.safe_load(file)
+        config = data['config']
+        logger.success(f'Fast configured successfully')
 
 
 def splash():
