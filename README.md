@@ -1,1 +1,1 @@
-# fast - Flag Acquisition and Submission Tool
+# 🏁 fast - Flag Acquisition and Submission Tool
