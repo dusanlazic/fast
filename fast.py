@@ -1,16 +1,18 @@
 import subprocess
 import time
 import threading
-import sys
+import os
 from util.styler import TextStyler as st
 from util.log import logger
 from itertools import product
 
-EXPLOITS_FILE = 'exploits.txt'
 TICK_DURATION = 10
+DIR_PATH = os.path.dirname(os.path.realpath(__file__))
+RUNNER_PATH = os.path.join(DIR_PATH, 'runner.py')
 
 
 def main():
+    splash()
     tick_counter = 0
 
     exploits = load_exploits()
@@ -25,17 +27,17 @@ def main():
 
 
 def run_exploit(exploit, targets):
-    logger.info(f'Running {st.bold(exploit)} at {st.bold(len(targets))} targets')
+    logger.info(f'Running {st.bold(exploit)} at {st.bold(len(targets))} target{"s" if len(targets) > 1 else ""}')
 
     subprocess.run(
-        ['python3', 'runner.py', '--exploit', exploit] + targets, text=True)
+        ['python3', RUNNER_PATH, '--exploit', exploit] + targets, text=True)
 
-    logger.info(f'Exploit {exploit} finished.')
+    logger.info(f'{st.bold(exploit)} finished.')
 
 
 def load_exploits():
     logger.info('Loading exploits...')
-    with open(EXPLOITS_FILE, 'r') as file:
+    with open('exploits.txt', 'r') as file:
         exploits = [parse_exploit_entry(line) for line in file.readlines()]
         logger.success(f'Loaded {len(exploits)} exploits')
         return exploits
@@ -55,20 +57,15 @@ def parse_exploit_entry(line):
     return (exploit, ips)
 
 
-def ascii():
+def splash():
     print("""
  ()__              __          _   
  ||  |__          / _|        | |  
- ||--|   |____   | |_ __ _ ___| |_ 
- ||--|---|    |  |  _/ _` / __| __|
- ||  |---|----|  | || (_| \__ \ |_ 
- ||''|   |----|  |_| \__,_|___/\__|
+ ||  |   |____   | |_ __ _ ___| |_ 
+ ||  |   |    |  |  _/ _` / __| __|
+ ||  |   |    |  | || (_| \__ \ |_ 
+ ||''|   |    |  |_| \__,_|___/\__|
  ||  `'''|    |  
  ||      `''''`   Flag Acquisition
- ||              and Submission Tool
+ ||   v0.1       and Submission Tool
  ||""")
-
-
-if __name__ == '__main__':
-    ascii()
-    main()

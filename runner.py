@@ -1,3 +1,5 @@
+import os
+import sys
 import argparse
 import multiprocessing
 from util.styler import TextStyler as st
@@ -11,10 +13,12 @@ def main(args):
     """
     This module will run your exploit on all specified targets.
     """
+    sys.path.append(os.getcwd())
+
     global exploit_name
     exploit_name = args.exploit.strip(".py")
 
-    module = import_module(f'exploits.{exploit_name}')
+    module = import_module(f'{exploit_name}')
     exploit = getattr(module, 'exploit')
 
     with multiprocessing.Pool() as pool:
