@@ -9,7 +9,8 @@ setup(
     url="https://github.com/dusanlazic/fast",
     install_requires=[
         'loguru',
-        'pyyaml'
+        'pyyaml',
+        'peewee'
     ],
     packages=find_packages(),
     py_modules=['fast', 'runner'],

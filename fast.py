@@ -3,29 +3,33 @@ import time
 import threading
 import os
 import yaml
+from util.helpers import incrs
 from util.styler import TextStyler as st
 from util.log import logger
 from itertools import product
+from database import db
+from models import Flag
 
 config = []
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 RUNNER_PATH = os.path.join(DIR_PATH, 'runner.py')
-
+env = os.environ.copy()
 
 def main():
     splash()
     load_config()
+    setup_database()
     exploits = load_exploits()
 
-    tick_counter = 0
+    env["TICK_NUMBER"] = '0'
 
     while True:
-        logger.info(f'Started tick {st.bold(tick_counter)}. ⌛')
+        logger.info(f'Started tick {st.bold(env["TICK_NUMBER"])}. ⌛')
         for exploit in exploits:
             threading.Thread(target=run_exploit, args=exploit).start()
 
         time.sleep(config['tick_duration'])
-        tick_counter += 1
+        env["TICK_NUMBER"] = incrs(env["TICK_NUMBER"])
 
 
 def run_exploit(name, cmd, targets):
@@ -36,7 +40,7 @@ def run_exploit(name, cmd, targets):
     logger.info(
         f'Running {st.bold(name)} at {st.bold(len(targets))} target{"s" if len(targets) > 1 else ""}...')
 
-    subprocess.run(runner_command, text=True)
+    subprocess.run(runner_command, text=True, env=env)
 
     logger.info(f'{st.bold(name)} finished.')
 
@@ -75,6 +79,11 @@ def load_config():
         data = yaml.safe_load(file)
         config = data['config']
         logger.success(f'Fast configured successfully.')
+
+
+def setup_database():
+    db.connect()
+    db.create_tables([Flag])
 
 
 def splash():

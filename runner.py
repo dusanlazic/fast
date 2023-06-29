@@ -6,13 +6,16 @@ import shlex
 import argparse
 import subprocess
 import multiprocessing
+from importlib import import_module
 from util.styler import TextStyler as st
 from util.log import logger
-from importlib import import_module
+from models import Flag
+from database import db
 
 exploit_name = ''
 shell_command = []
 config = []
+tick_number = os.getenv('TICK_NUMBER')
 
 manager = multiprocessing.Manager()
 flags_collected = manager.Value('i', 0)
@@ -21,6 +24,7 @@ lock = manager.Lock()
 
 def main(args):
     load_config()
+    connect_to_db()
 
     global exploit_name, shell_command
     exploit_name = args.exploit
@@ -49,14 +53,16 @@ def exploit_wrapper(args):
         if check_flag_format(flag):
             logger.success(
                 f"{st.bold(exploit_name)} retrieved the flag from {st.bold(target)}. 🚩 — {st.faint(flag)}")
-            
+
+            flag = Flag(value=flag, exploit_name=exploit_name,
+                        target_ip=target, tick_number=tick_number, status='queued')
+            flag.save()
+
             with lock:
                 flags_collected.value += 1
         else:
             logger.warning(
                 f"{st.bold(exploit_name)} failed to retrieve the flag from {st.bold(target)}. — {st.color(flag[:50], 'yellow')}")
-
-        # TODO: Store and submit flag
 
     except Exception as e:
         exception_name = '.'.join([type(e).__module__, type(e).__qualname__])
@@ -89,6 +95,10 @@ def load_config():
     with open('fast.yaml', 'r') as file:
         data = yaml.safe_load(file)
         config = data['config']
+
+
+def connect_to_db():
+    db.connect()
 
 
 if __name__ == "__main__":
