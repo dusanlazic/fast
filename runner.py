@@ -12,9 +12,11 @@ from importlib import import_module
 
 exploit_name = ''
 shell_command = []
-flags_collected = 0
-
 config = []
+
+manager = multiprocessing.Manager()
+flags_collected = manager.Value('i', 0)
+lock = manager.Lock()
 
 
 def main(args):
@@ -36,12 +38,10 @@ def main(args):
                  for target in args.targets])
 
     logger.info(
-        f"{st.bold(exploit_name)} retrieved {st.bold(str(flags_collected))}/{len(args.targets)} flags.")
+        f"{st.bold(exploit_name)} retrieved {st.bold(str(flags_collected.value))}/{len(args.targets)} flags.")
 
 
 def exploit_wrapper(args):
-    global flags_collected
-
     exploit_func, target = args
     try:
         flag = exploit_func(target)
@@ -49,7 +49,9 @@ def exploit_wrapper(args):
         if check_flag_format(flag):
             logger.success(
                 f"{st.bold(exploit_name)} retrieved the flag from {st.bold(target)}. 🚩 — {st.faint(flag)}")
-            flags_collected += 1
+            
+            with lock:
+                flags_collected.value += 1
         else:
             logger.warning(
                 f"{st.bold(exploit_name)} failed to retrieve the flag from {st.bold(target)}. — {st.color(flag[:50], 'yellow')}")
