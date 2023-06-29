@@ -28,14 +28,17 @@ def main():
         tick_counter += 1
 
 
-def run_exploit(exploit, targets):
+def run_exploit(name, cmd, targets):
+    runner_command = ['python3', RUNNER_PATH] + targets + ['--exploit', name]
+    if cmd:
+        runner_command.extend(['--cmd', cmd])
+
     logger.info(
-        f'Running {st.bold(exploit)} at {st.bold(len(targets))} target{"s" if len(targets) > 1 else ""}...')
+        f'Running {st.bold(name)} at {st.bold(len(targets))} target{"s" if len(targets) > 1 else ""}...')
 
-    subprocess.run(
-        ['python3', RUNNER_PATH, '--exploit', exploit] + targets, text=True)
+    subprocess.run(runner_command, text=True)
 
-    logger.info(f'{st.bold(exploit)} finished.')
+    logger.info(f'{st.bold(name)} finished.')
 
 
 def load_exploits():
@@ -56,10 +59,12 @@ def expand_ip_range(ip_range):
 
 
 def parse_exploit_entry(entry):
-    exploit = entry['name']
+    name = entry.get('name')
+    cmd = entry.get('cmd')
     ips = [ip for ip_range in entry['targets']
            for ip in expand_ip_range(ip_range)]
-    return (exploit, ips)
+
+    return (name, cmd, ips)
 
 
 def load_config():
