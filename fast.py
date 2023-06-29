@@ -20,7 +20,7 @@ def main():
     tick_counter = 0
 
     while True:
-        logger.info(f'Started tick {st.bold(tick_counter)} ⌛')
+        logger.info(f'Started tick {st.bold(tick_counter)}. ⌛')
         for exploit in exploits:
             threading.Thread(target=run_exploit, args=exploit).start()
 
@@ -30,7 +30,7 @@ def main():
 
 def run_exploit(exploit, targets):
     logger.info(
-        f'Running {st.bold(exploit)} at {st.bold(len(targets))} target{"s" if len(targets) > 1 else ""}')
+        f'Running {st.bold(exploit)} at {st.bold(len(targets))} target{"s" if len(targets) > 1 else ""}...')
 
     subprocess.run(
         ['python3', RUNNER_PATH, '--exploit', exploit] + targets, text=True)
@@ -44,7 +44,7 @@ def load_exploits():
         data = yaml.safe_load(file)
         exploits = [parse_exploit_entry(exploit)
                     for exploit in data['exploits']]
-        logger.success(f'Loaded {len(exploits)} exploits')
+        logger.success(f'Loaded {len(exploits)} exploits.')
         return exploits
 
 
@@ -69,7 +69,7 @@ def load_config():
     with open('fast.yaml', 'r') as file:
         data = yaml.safe_load(file)
         config = data['config']
-        logger.success(f'Fast configured successfully')
+        logger.success(f'Fast configured successfully.')
 
 
 def splash():
