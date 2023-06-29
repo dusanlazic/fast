@@ -1,5 +1,7 @@
+import re
 import os
 import sys
+import yaml
 import shlex
 import argparse
 import subprocess
@@ -12,10 +14,13 @@ exploit_name = ''
 shell_command = []
 flags_collected = 0
 
+config = []
+
 
 def main(args):
-    global exploit_name, shell_command
+    load_config()
 
+    global exploit_name, shell_command
     exploit_name = args.exploit
 
     if args.cmd:
@@ -41,15 +46,16 @@ def exploit_wrapper(args):
     try:
         flag = exploit_func(target)
 
-        # TODO: Check user configured flag format
-        if len(flag):
+        if check_flag_format(flag):
             logger.success(
                 f"{st.bold(exploit_name)} retrieved the flag from {st.bold(target)}. 🚩 — {st.faint(flag)}")
             flags_collected += 1
         else:
             logger.warning(
-                f"{st.bold(exploit_name)} failed to retrieve the flag from {st.bold(target)}. — {st.color(flag[:32], 'yellow')}")
+                f"{st.bold(exploit_name)} failed to retrieve the flag from {st.bold(target)}. — {st.color(flag[:50], 'yellow')}")
+
         # TODO: Store and submit flag
+
     except Exception as e:
         exception_name = '.'.join([type(e).__module__, type(e).__qualname__])
 
@@ -58,15 +64,29 @@ def exploit_wrapper(args):
 
 
 def run_shell_command(target):
-    rendered_command = [target if value == '[ip]' else value for value in shell_command]
+    rendered_command = [target if value ==
+                        '[ip]' else value for value in shell_command]
 
-    logger.debug(shlex.join(rendered_command))
     result = subprocess.run(
         rendered_command,
         capture_output=True,
         text=True
     )
     return result.stdout.strip()
+
+
+def check_flag_format(flag):
+    if flag and re.fullmatch(config['flag_format'], flag):
+        return True
+    return False
+
+
+def load_config():
+    global config
+
+    with open('fast.yaml', 'r') as file:
+        data = yaml.safe_load(file)
+        config = data['config']
 
 
 if __name__ == "__main__":
