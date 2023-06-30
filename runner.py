@@ -2,13 +2,15 @@ import re
 import os
 import sys
 import yaml
+import time
 import shlex
 import argparse
+import traceback
 import subprocess
 import multiprocessing
 from importlib import import_module
 from util.styler import TextStyler as st
-from util.log import logger
+from util.log import logger, log_error
 from models import Flag
 from database import db
 
@@ -69,6 +71,8 @@ def exploit_wrapper(args):
 
         logger.error(
             f"{st.bold(exploit_name)} failed to complete for target {st.bold(target)}. — {st.color(exception_name, 'red')}")
+
+        log_error(exploit_name, target, e)
 
 
 def run_shell_command(target):

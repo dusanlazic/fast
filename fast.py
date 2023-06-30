@@ -5,7 +5,7 @@ import os
 import yaml
 from util.helpers import incrs
 from util.styler import TextStyler as st
-from util.log import logger
+from util.log import logger, create_log_dir
 from itertools import product
 from database import db
 from models import Flag
@@ -19,6 +19,7 @@ def main():
     splash()
     load_config()
     setup_database()
+    create_log_dir()
     exploits = load_exploits()
 
     env["TICK_NUMBER"] = '0'
