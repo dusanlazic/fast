@@ -2,10 +2,8 @@ import re
 import os
 import sys
 import yaml
-import time
 import shlex
 import argparse
-import traceback
 import subprocess
 import multiprocessing
 from importlib import import_module
@@ -17,7 +15,6 @@ from database import db
 exploit_name = ''
 shell_command = []
 config = []
-tick_number = os.getenv('TICK_NUMBER')
 
 manager = multiprocessing.Manager()
 flags_collected = manager.Value('i', 0)
@@ -57,7 +54,7 @@ def exploit_wrapper(args):
                 f"{st.bold(exploit_name)} retrieved the flag from {st.bold(target)}. 🚩 — {st.faint(flag)}")
 
             flag = Flag(value=flag, exploit_name=exploit_name,
-                        target_ip=target, tick_number=tick_number, status='queued')
+                        target_ip=target, status='queued')
             flag.save()
 
             with lock:
@@ -114,6 +111,8 @@ if __name__ == "__main__":
                         required=True, help="Name of the module containing the 'exploit' function")
     parser.add_argument("--cmd", metavar="Command", type=str,
                         help="Optional shell command for running the exploit if it is not a Python script")
+    parser.add_argument("--timeout", type=int, default=30,
+                        help="Optional timeout for exploit in seconds")
 
     args = parser.parse_args()
     main(args)

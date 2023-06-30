@@ -13,7 +13,6 @@ from models import Flag
 config = []
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 RUNNER_PATH = os.path.join(DIR_PATH, 'runner.py')
-env = os.environ.copy()
 
 def main():
     splash()
@@ -22,26 +21,28 @@ def main():
     create_log_dir()
     exploits = load_exploits()
 
-    env["TICK_NUMBER"] = '0'
+    tick_number = 0
 
     while True:
-        logger.info(f'Started tick {st.bold(env["TICK_NUMBER"])}. ⌛')
+        logger.info(f'Started tick {st.bold(str(tick_number))}. ⏱️')
         for exploit in exploits:
             threading.Thread(target=run_exploit, args=exploit).start()
 
         time.sleep(config['tick_duration'])
-        env["TICK_NUMBER"] = incrs(env["TICK_NUMBER"])
+        tick_number += 1
 
 
-def run_exploit(name, cmd, targets):
+def run_exploit(name, cmd, targets, timeout):
     runner_command = ['python3', RUNNER_PATH] + targets + ['--exploit', name]
     if cmd:
         runner_command.extend(['--cmd', cmd])
+    if timeout:
+        runner_command.extend(['--timeout', str(timeout)])
 
     logger.info(
         f'Running {st.bold(name)} at {st.bold(len(targets))} target{"s" if len(targets) > 1 else ""}...')
 
-    subprocess.run(runner_command, text=True, env=env)
+    subprocess.run(runner_command, text=True)
 
     logger.info(f'{st.bold(name)} finished.')
 
@@ -66,16 +67,16 @@ def expand_ip_range(ip_range):
 def parse_exploit_entry(entry):
     name = entry.get('name')
     cmd = entry.get('cmd')
-    ips = [ip for ip_range in entry['targets']
+    targets = [ip for ip_range in entry['targets']
            for ip in expand_ip_range(ip_range)]
+    timeout = entry.get('timeout')
 
-    return (name, cmd, ips)
+    return (name, cmd, targets, timeout)
 
 
 def load_config():
     global config
 
-    logger.info('Configuring...')
     with open('fast.yaml', 'r') as file:
         data = yaml.safe_load(file)
         config = data['config']
@@ -85,6 +86,7 @@ def load_config():
 def setup_database():
     db.connect()
     db.create_tables([Flag])
+    logger.success('Database connected.')
 
 
 def splash():
