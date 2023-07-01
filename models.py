@@ -9,3 +9,12 @@ class Flag(BaseModel):
     timestamp = DateTimeField(default=datetime.now)
     status = CharField(constraints=[Check("status IN ('queued', 'accepted', 'declined')")])
     comment = CharField(null=True)
+
+
+class ExploitDetails:
+    def __init__(self, name, targets, cmd=None, timeout=None, env=None):
+        self.name = name
+        self.targets = targets
+        self.cmd = cmd
+        self.timeout = timeout
+        self.env = env

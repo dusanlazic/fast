@@ -8,7 +8,7 @@ from util.styler import TextStyler as st
 from util.log import logger, create_log_dir
 from itertools import product
 from database import db
-from models import Flag
+from models import Flag, ExploitDetails
 
 config = []
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
@@ -26,25 +26,25 @@ def main():
     while True:
         logger.info(f'Started tick {st.bold(str(tick_number))}. ⏱️')
         for exploit in exploits:
-            threading.Thread(target=run_exploit, args=exploit).start()
+            threading.Thread(target=run_exploit, args=(exploit,)).start()
 
         time.sleep(config['tick_duration'])
         tick_number += 1
 
 
-def run_exploit(name, cmd, targets, timeout):
-    runner_command = ['python3', RUNNER_PATH] + targets + ['--exploit', name]
-    if cmd:
-        runner_command.extend(['--cmd', cmd])
-    if timeout:
-        runner_command.extend(['--timeout', str(timeout)])
+def run_exploit(exploit):
+    runner_command = ['python3', RUNNER_PATH] + exploit.targets + ['--exploit', exploit.name]
+    if exploit.cmd:
+        runner_command.extend(['--cmd', exploit.cmd])
+    if exploit.timeout:
+        runner_command.extend(['--timeout', str(exploit.timeout)])
 
     logger.info(
-        f'Running {st.bold(name)} at {st.bold(len(targets))} target{"s" if len(targets) > 1 else ""}...')
+        f'Running {st.bold(exploit.name)} at {st.bold(len(exploit.targets))} target{"s" if len(exploit.targets) > 1 else ""}...')
 
-    subprocess.run(runner_command, text=True)
+    subprocess.run(runner_command, text=True, env={**exploit.env, **os.environ})
 
-    logger.info(f'{st.bold(name)} finished.')
+    logger.info(f'{st.bold(exploit.name)} finished.')
 
 
 def load_exploits():
@@ -70,8 +70,9 @@ def parse_exploit_entry(entry):
     targets = [ip for ip_range in entry['targets']
            for ip in expand_ip_range(ip_range)]
     timeout = entry.get('timeout')
+    env = entry.get('env') or {}
 
-    return (name, cmd, targets, timeout)
+    return ExploitDetails(name, targets, cmd, timeout, env)
 
 
 def load_config():
