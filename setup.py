@@ -10,7 +10,8 @@ setup(
     install_requires=[
         'loguru',
         'pyyaml',
-        'peewee'
+        'peewee',
+        'stopit'
     ],
     packages=find_packages(),
     py_modules=['fast', 'runner'],
