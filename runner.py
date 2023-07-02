@@ -57,11 +57,11 @@ def main(args):
 
 @stopit.threading_timeoutable()
 def exploit_wrapper(exploit_func, target):
-    logger.debug(target)
     try:
-        flag_value = exploit_func(target)
+        response_text = exploit_func(target)
+        flag_value = match_flag(response_text)
 
-        if check_flag_format(flag_value):
+        if flag_value:
             logger.success(
                 f"{st.bold(exploit_name)} retrieved the flag from {st.bold(target)}. 🚩 — {st.faint(flag_value)}")
 
@@ -98,10 +98,11 @@ def run_shell_command(target):
     return result.stdout.strip()
 
 
-def check_flag_format(flag):
-    if flag and re.fullmatch(config['flag_format'], flag):
-        return True
-    return False
+def match_flag(text):
+    match = re.search(config['flag_format'], text)
+    if match:
+        return match.group()
+    return None
 
 
 def load_config():
