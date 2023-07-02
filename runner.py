@@ -2,11 +2,12 @@ import re
 import os
 import sys
 import yaml
-import time
 import shlex
+import stopit
 import argparse
+import threading
 import subprocess
-import multiprocessing
+from queue import Queue
 from importlib import import_module
 from util.styler import TextStyler as st
 from util.log import logger, log_error
@@ -17,6 +18,8 @@ from database import db
 exploit_name = ''
 shell_command = []
 config = []
+
+flags = Queue()
 
 
 def main(args):
@@ -34,39 +37,27 @@ def main(args):
         module = import_module(f'{exploit_name}')
         exploit_func = getattr(module, 'exploit')
 
-    with multiprocessing.Pool() as pool:
-        tasks = [(exploit_func, target) for target in args.targets]
-        flags = []
-        remaining = args.targets[:]
+    threads = [
+        threading.Thread(
+            target=exploit_wrapper,
+            args=(exploit_func, target),
+            kwargs={'timeout': args.timeout})
+        for target in args.targets
+    ]
 
-        start = time.time()
-        it = pool.imap_unordered(
-            exploit_wrapper,
-            tasks
-        )
+    for t in threads:
+        t.start()
 
-        while (time.time() - start) <= args.timeout:
-            try:
-                target, flag = it.next(timeout=0.1)
-                # When the exploit returns, run the following
-                remaining.remove(target)
-
-                if flag:
-                    flags.append(flag)
-            except StopIteration:
-                break
-            except multiprocessing.TimeoutError:
-                pass
-
-    if remaining:
-        logger.error(f"{st.bold(exploit_name)} took longer than {st.bold(args.timeout)} seconds ⌛ for the following targets: {st.bold(', '.join(remaining))}.")
+    for t in threads:
+        t.join()
 
     logger.info(
-        f"{st.bold(exploit_name)} retrieved {st.bold(str(len(flags)))}/{len(args.targets)} flags.")
+        f"{st.bold(exploit_name)} retrieved {st.bold(str(flags.qsize()))}/{len(args.targets)} flags.")
 
 
-def exploit_wrapper(args):
-    exploit_func, target = args
+@stopit.threading_timeoutable()
+def exploit_wrapper(exploit_func, target):
+    logger.debug(target)
     try:
         flag_value = exploit_func(target)
 
@@ -74,23 +65,25 @@ def exploit_wrapper(args):
             logger.success(
                 f"{st.bold(exploit_name)} retrieved the flag from {st.bold(target)}. 🚩 — {st.faint(flag_value)}")
 
-            return target, Flag(
-                value=flag_value, 
+            flags.put(Flag(
+                value=flag_value,
                 exploit_name=exploit_name,
-                target_ip=target, 
+                target_ip=target,
                 status='queued'
-            )
+            ))
         else:
             logger.warning(
                 f"{st.bold(exploit_name)} failed to retrieve the flag from {st.bold(target)}. — {st.color(truncate(flag_value, 50), 'yellow')}")
+    except stopit.utils.TimeoutException as e:
+        logger.error(
+            f"{st.bold(exploit_name)} took longer than {st.bold(str(args.timeout))} seconds for {st.bold(target)}. ⌛"
+        )
     except Exception as e:
         exception_name = '.'.join([type(e).__module__, type(e).__qualname__])
         logger.error(
-            f"{st.bold(exploit_name)} failed with an error for target {st.bold(target)}. — {st.color(exception_name, 'red')}")
+            f"{st.bold(exploit_name)} failed with an error for {st.bold(target)}. — {st.color(exception_name, 'red')}")
 
         log_error(exploit_name, target, e)
-
-    return target, None
 
 
 def run_shell_command(target):
