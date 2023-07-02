@@ -11,7 +11,8 @@ setup(
         'loguru',
         'pyyaml',
         'peewee',
-        'stopit'
+        'stopit',
+        'APScheduler'
     ],
     packages=find_packages(),
     py_modules=['fast', 'runner'],

@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+
 def incrs(number_string):
     """
     Increments a number written as a string.
@@ -12,3 +14,7 @@ def truncate(string, length):
     if string and len(string) > length:
         return string[:length - 3] + "..."
     return string
+
+
+def seconds_from_now(seconds):
+    return datetime.now() + timedelta(seconds=seconds)

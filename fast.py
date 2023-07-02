@@ -1,39 +1,71 @@
 import subprocess
-import time
 import threading
 import os
 import yaml
-from util.helpers import incrs
+from apscheduler.schedulers.background import BlockingScheduler
+from util.helpers import seconds_from_now
 from util.styler import TextStyler as st
 from util.log import logger, create_log_dir
 from itertools import product
 from database import db
 from models import Flag, ExploitDetails
 
-config = []
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 RUNNER_PATH = os.path.join(DIR_PATH, 'runner.py')
 
+tick_number = 0
+
+
 def main():
     splash()
-    load_config()
     setup_database()
     create_log_dir()
+    game, submitter = load_config()
     exploits = load_exploits()
 
-    tick_number = 0
+    scheduler = BlockingScheduler()
+    scheduler.add_job(
+        func=run_exploits,
+        args=(exploits,),
+        trigger='interval',
+        seconds=game['tick_duration'],
+        id='exploits',
+        next_run_time=seconds_from_now(0)
+    )
 
-    while True:
-        logger.info(f'Started tick {st.bold(str(tick_number))}. ⏱️')
-        for exploit in exploits:
-            threading.Thread(target=run_exploit, args=(exploit,)).start()
+    delay = submitter['tick_start_delay']
+    run_every_nth = submitter.get('run_every_nth_tick') or 1
+    interval = run_every_nth * game['tick_duration']
+    first_run = (run_every_nth - 1) * game['tick_duration'] + delay
 
-        time.sleep(config['tick_duration'])
-        tick_number += 1
+    scheduler.add_job(
+        func=run_submitter,
+        trigger='interval',
+        seconds=interval,
+        id='submitter',
+        next_run_time=seconds_from_now(first_run)
+    )
+    
+    scheduler.start()
+
+
+def run_exploits(exploits):
+    global tick_number
+
+    logger.info(f'Started tick {st.bold(str(tick_number))}. ⏱️')
+    for exploit in exploits:
+        threading.Thread(target=run_exploit, args=(exploit,)).start()
+
+    tick_number += 1
+
+
+def run_submitter():
+    logger.debug("Running submitter...")
 
 
 def run_exploit(exploit):
-    runner_command = ['python3', RUNNER_PATH] + exploit.targets + ['--exploit', exploit.name]
+    runner_command = ['python3', RUNNER_PATH] + \
+        exploit.targets + ['--exploit', exploit.name]
     if exploit.cmd:
         runner_command.extend(['--cmd', exploit.cmd])
     if exploit.timeout:
@@ -42,7 +74,8 @@ def run_exploit(exploit):
     logger.info(
         f'Running {st.bold(exploit.name)} at {st.bold(len(exploit.targets))} target{"s" if len(exploit.targets) > 1 else ""}...')
 
-    subprocess.run(runner_command, text=True, env={**exploit.env, **os.environ})
+    subprocess.run(runner_command, text=True, env={
+                   **exploit.env, **os.environ})
 
     logger.info(f'{st.bold(exploit.name)} finished.')
 
@@ -68,7 +101,7 @@ def parse_exploit_entry(entry):
     name = entry.get('name')
     cmd = entry.get('cmd')
     targets = [ip for ip_range in entry['targets']
-           for ip in expand_ip_range(ip_range)]
+               for ip in expand_ip_range(ip_range)]
     timeout = entry.get('timeout')
     env = entry.get('env') or {}
 
@@ -76,12 +109,11 @@ def parse_exploit_entry(entry):
 
 
 def load_config():
-    global config
-
     with open('fast.yaml', 'r') as file:
         data = yaml.safe_load(file)
-        config = data['config']
         logger.success(f'Fast configured successfully.')
+
+        return data['game'], data['submitter']
 
 
 def setup_database():
