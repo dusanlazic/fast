@@ -27,14 +27,14 @@ def main(args):
     connect_to_db()
 
     global exploit_name, shell_command
-    exploit_name = args.exploit
+    exploit_name = args.name
 
     if args.cmd:
         shell_command = shlex.split(args.cmd)
         exploit_func = run_shell_command
     else:
         sys.path.append(os.getcwd())
-        module = import_module(f'{exploit_name}')
+        module = import_module(f'{args.module}')
         exploit_func = getattr(module, 'exploit')
 
     threads = [
@@ -122,8 +122,10 @@ if __name__ == "__main__":
         description="Run exploits in parallel for given IP addresses.")
     parser.add_argument("targets", metavar="IP", type=str,
                         nargs="+", help="An IP address of the target")
-    parser.add_argument("--exploit", metavar="Exploit", type=str,
-                        required=True, help="Name of the module containing the 'exploit' function")
+    parser.add_argument("--name", metavar="Name", type=str,
+                        required=True, help="Name of the exploit for its identification")
+    parser.add_argument("--module", metavar="Exploit", type=str,
+                        help="Name of the module containing the 'exploit' function")
     parser.add_argument("--cmd", metavar="Command", type=str,
                         help="Optional shell command for running the exploit if it is not a Python script")
     parser.add_argument("--timeout", type=int, default=30,

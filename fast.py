@@ -64,8 +64,9 @@ def run_submitter():
 
 
 def run_exploit(exploit):
-    runner_command = ['python3', RUNNER_PATH] + \
-        exploit.targets + ['--exploit', exploit.name]
+    runner_command = ['python3', RUNNER_PATH] + exploit.targets + ['--name', exploit.name]
+    if exploit.module:
+        runner_command.extend(['--module', exploit.module])
     if exploit.cmd:
         runner_command.extend(['--cmd', exploit.cmd])
     if exploit.timeout:
@@ -100,12 +101,13 @@ def expand_ip_range(ip_range):
 def parse_exploit_entry(entry):
     name = entry.get('name')
     cmd = entry.get('cmd')
+    module = None if cmd else (entry.get('module') or name).strip('.py')
     targets = [ip for ip_range in entry['targets']
                for ip in expand_ip_range(ip_range)]
     timeout = entry.get('timeout')
     env = entry.get('env') or {}
 
-    return ExploitDetails(name, targets, cmd, timeout, env)
+    return ExploitDetails(name, targets, module, cmd, timeout, env)
 
 
 def load_config():
