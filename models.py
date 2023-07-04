@@ -12,10 +12,11 @@ class Flag(BaseModel):
 
 
 class ExploitDetails:
-    def __init__(self, name, targets, module=None, cmd=None, timeout=None, env=None):
+    def __init__(self, name, targets, module=None, cmd=None, timeout=None, env=None, delay=None):
         self.name = name
         self.targets = targets
         self.module = module
         self.cmd = cmd
         self.timeout = timeout
         self.env = env
+        self.delay = delay

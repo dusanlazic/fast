@@ -1,6 +1,7 @@
 import os
 import sys
 import yaml
+import time
 import hashlib
 import threading
 import subprocess
@@ -76,6 +77,8 @@ def run_exploit(exploit):
         runner_command.extend(['--cmd', exploit.cmd])
     if exploit.timeout:
         runner_command.extend(['--timeout', str(exploit.timeout)])
+    if exploit.delay:
+        time.sleep(exploit.delay)
 
     logger.info(
         f'Running {st.bold(exploit.name)} at {st.bold(len(exploit.targets))} target{"s" if len(exploit.targets) > 1 else ""}...')
@@ -178,8 +181,9 @@ def parse_exploit_entry(entry):
                for ip in expand_ip_range(ip_range)]
     timeout = entry.get('timeout')
     env = entry.get('env') or {}
+    delay = entry.get('delay')
 
-    return ExploitDetails(name, targets, module, cmd, timeout, env)
+    return ExploitDetails(name, targets, module, cmd, timeout, env, delay)
 
 
 def load_config():

@@ -25,7 +25,8 @@ myexploits/
 ├── charlie.py
 ├── delta.rs
 ├── echo.py
-├── foxtrot.sh
+├── foxtrot.py
+├── golf.sh
 └── submitter.py
 ```
 
@@ -75,9 +76,15 @@ exploits:
     targets:
       - 172.20.0.2-11
 
+  # Too many exploits consuming resources on each tick? Arrange them by setting a delay
+  - name: foxtrot
+    delay: 5
+    targets:
+      - 172.20.0.2-11
+
   # Choose things that you need!
-  - name: foxtrot (bash)
-    cmd: bash foxtrot.sh [ip]
+  - name: golf (bash)
+    cmd: bash golf.sh [ip]
     env:
       API_KEY: 0898ef92b120
     timeout: 20
