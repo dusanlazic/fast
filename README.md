@@ -1,6 +1,6 @@
 # 🚩 Fast — Flag Acquisition and Submission Tool
 
-Fast is a Python tool designed to easily manage your exploits and automate submitting flags in A/D competitions. The goal of Fast is to make writting exploits your only concern in A/D competitions, while maintaining simplicity.
+Fast is a Python tool designed to easily manage your exploits and automate submitting flags in A/D competitions. The goal of Fast is to make writing exploits your only concern in A/D competitions, while maintaining simplicity.
 
 > Keep in mind that this tool is in early stages of development and at this moment it is still an experimental tool. Fast is yet to be improved and battle tested. :)
 
