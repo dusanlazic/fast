@@ -7,7 +7,7 @@ class Flag(BaseModel):
     exploit_name = CharField()
     target_ip = CharField()
     timestamp = DateTimeField(default=datetime.now)
-    status = CharField(constraints=[Check("status IN ('queued', 'accepted', 'declined')")])
+    status = CharField(constraints=[Check("status IN ('queued', 'accepted', 'rejected')")])
     comment = CharField(null=True)
 
 

@@ -131,7 +131,7 @@ Your submitter script should also follow certain guidelines:
 
 1. Submitter script should have a function named `submit`.
 2. The `submit` function should take one parameter, `flags`, which is a list of flags (string values) for submission.
-3. The `submit` function should return two lists, the first one should be a list of accepted flags, and the second one a list of declined flags.
+3. The `submit` function should return two lists, the first one should be a list of accepted flags, and the second one a list of rejected flags.
 
 Here is an example of how a submitter script may look like:
 
@@ -152,7 +152,7 @@ def submit(flags):
     flag_statuses = json.loads(response)
 
     accepted_flags = [item["flag"] for item in flag_statuses if item["status"] == "Flag accepted!"]
-    declined_flags = [item["flag"] for item in flag_statuses if item["status"] != "Flag accepted!"]
+    rejected_flags = [item["flag"] for item in flag_statuses if item["status"] != "Flag accepted!"]
 
-    return accepted_flags, declined_flags
+    return accepted_flags, rejected_flags
 ```

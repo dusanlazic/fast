@@ -96,19 +96,19 @@ def submitter_wrapper(submit):
 
     logger.info(st.bold(f"Submitting {len(flags)} flags..."))
 
-    accepted, declined = submit(flags)
+    accepted, rejected = submit(flags)
 
     if accepted:
         logger.success(f"{st.bold(len(accepted))} flags accepted. ✅")
     else:
         logger.warning(f"No flags accepted, or your script is not returning accepted flags.")
 
-    if declined:
-        logger.warning(f"{st.bold(len(declined))} flags declined.")
+    if rejected:
+        logger.warning(f"{st.bold(len(rejected))} flags rejected.")
 
-    if len(flags) != len(accepted) + len(declined):
+    if len(flags) != len(accepted) + len(rejected):
         logger.error(
-            f"{st.bold(len(flags) - len(accepted) - len(declined))} responses missing. Flags may be submitted, but your stats may be inaccurate.")
+            f"{st.bold(len(flags) - len(accepted) - len(rejected))} responses missing. Flags may be submitted, but your stats may be inaccurate.")
 
     with db.atomic():
         if accepted:
@@ -117,15 +117,15 @@ def submitter_wrapper(submit):
                 flag.status = 'accepted'
             Flag.bulk_update(to_accept, fields=[Flag.status])
 
-        if declined:
-            to_decline = Flag.select().where(Flag.value.in_(declined))
+        if rejected:
+            to_decline = Flag.select().where(Flag.value.in_(rejected))
             for flag in to_decline:
-                flag.status = 'declined'
+                flag.status = 'rejected'
             Flag.bulk_update(to_decline, fields=[Flag.status])
 
         queued_count = Flag.select().where(Flag.status == 'queued').count()
         accepted_count = Flag.select().where(Flag.status == 'accepted').count()
-        declined_count = Flag.select().where(Flag.status == 'declined').count()
+        rejected_count = Flag.select().where(Flag.status == 'rejected').count()
 
     queued_count_st = st.color(
         st.bold(queued_count), 'green') if queued_count == 0 else st.bold(queued_count)
@@ -133,11 +133,11 @@ def submitter_wrapper(submit):
     accepted_count_st = st.color(st.bold(
         accepted_count), 'green') if accepted_count > 0 else st.color(st.bold(accepted_count), 'yellow')
 
-    declined_count_st = st.color(st.bold(
-        declined_count), 'green') if declined_count == 0 else st.color(st.bold(declined_count), 'yellow')
+    rejected_count_st = st.color(st.bold(
+        rejected_count), 'green') if rejected_count == 0 else st.color(st.bold(rejected_count), 'yellow')
 
     logger.info(
-        f"{st.bold('Stats')} — {queued_count_st} queued, {accepted_count_st} accepted, {declined_count_st} declined.")
+        f"{st.bold('Stats')} — {queued_count_st} queued, {accepted_count_st} accepted, {rejected_count_st} rejected.")
 
 
 def load_exploits():
