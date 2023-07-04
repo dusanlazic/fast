@@ -1,7 +1,9 @@
-import subprocess
-import threading
 import os
+import sys
 import yaml
+import threading
+import subprocess
+from importlib import import_module
 from apscheduler.schedulers.background import BlockingScheduler
 from util.helpers import seconds_from_now
 from util.styler import TextStyler as st
@@ -38,14 +40,20 @@ def main():
     interval = run_every_nth * game['tick_duration']
     first_run = (run_every_nth - 1) * game['tick_duration'] + delay
 
+    sys.path.append(os.getcwd())
+    module = import_module(submitter['module'] or 'submitter')
+    submit_func = getattr(module, 'submit')
+
     scheduler.add_job(
-        func=run_submitter,
+        func=submitter_wrapper,
+        args=(submit_func,),
         trigger='interval',
         seconds=interval,
         id='submitter',
         next_run_time=seconds_from_now(first_run)
     )
-    
+
+    submitter_wrapper(submit_func)  # Run submitter to submit queued flags
     scheduler.start()
 
 
@@ -59,12 +67,9 @@ def run_exploits(exploits):
     tick_number += 1
 
 
-def run_submitter():
-    logger.debug("Running submitter...")
-
-
 def run_exploit(exploit):
-    runner_command = ['python3', RUNNER_PATH] + exploit.targets + ['--name', exploit.name]
+    runner_command = ['python3', RUNNER_PATH] + \
+        exploit.targets + ['--name', exploit.name]
     if exploit.module:
         runner_command.extend(['--module', exploit.module])
     if exploit.cmd:
@@ -79,6 +84,60 @@ def run_exploit(exploit):
                    **exploit.env, **os.environ})
 
     logger.info(f'{st.bold(exploit.name)} finished.')
+
+
+def submitter_wrapper(submit):
+    flags = [flag.value for flag in
+             Flag.select().where(Flag.status == 'queued')]
+
+    if not flags:
+        logger.info(f"No flags in the queue! Submission skipped.")
+        return
+
+    logger.info(st.bold(f"Submitting {len(flags)} flags..."))
+
+    accepted, declined = submit(flags)
+
+    if accepted:
+        logger.success(f"{st.bold(len(accepted))} flags accepted. ✅")
+    else:
+        logger.warning(f"No flags accepted, or your script is not returning accepted flags.")
+
+    if declined:
+        logger.warning(f"{st.bold(len(declined))} flags declined.")
+
+    if len(flags) != len(accepted) + len(declined):
+        logger.error(
+            f"{st.bold(len(flags) - len(accepted) - len(declined))} responses missing. Flags may be submitted, but your stats may be inaccurate.")
+
+    with db.atomic():
+        if accepted:
+            to_accept = Flag.select().where(Flag.value.in_(accepted))
+            for flag in to_accept:
+                flag.status = 'accepted'
+            Flag.bulk_update(to_accept, fields=[Flag.status])
+
+        if declined:
+            to_decline = Flag.select().where(Flag.value.in_(declined))
+            for flag in to_decline:
+                flag.status = 'declined'
+            Flag.bulk_update(to_decline, fields=[Flag.status])
+
+        queued_count = Flag.select().where(Flag.status == 'queued').count()
+        accepted_count = Flag.select().where(Flag.status == 'accepted').count()
+        declined_count = Flag.select().where(Flag.status == 'declined').count()
+
+    queued_count_st = st.color(
+        st.bold(queued_count), 'green') if queued_count == 0 else st.bold(queued_count)
+
+    accepted_count_st = st.color(st.bold(
+        accepted_count), 'green') if accepted_count > 0 else st.color(st.bold(accepted_count), 'yellow')
+
+    declined_count_st = st.color(st.bold(
+        declined_count), 'green') if declined_count == 0 else st.color(st.bold(declined_count), 'yellow')
+
+    logger.info(
+        f"{st.bold('Stats')} — {queued_count_st} queued, {accepted_count_st} accepted, {declined_count_st} declined.")
 
 
 def load_exploits():
@@ -121,6 +180,7 @@ def load_config():
 def setup_database():
     db.connect()
     db.create_tables([Flag])
+    Flag.add_index(Flag.value)
     logger.success('Database connected.')
 
 

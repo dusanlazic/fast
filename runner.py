@@ -51,8 +51,13 @@ def main(args):
     for t in threads:
         t.join()
 
-    logger.info(
-        f"{st.bold(exploit_name)} retrieved {st.bold(str(flags.qsize()))}/{len(args.targets)} flags.")
+    with db.atomic():
+        Flag.bulk_create(flags.queue)
+        queue_size = Flag.select().where(Flag.status == 'queued').count()
+
+        logger.info(
+            f"{st.bold(exploit_name)} retrieved {st.bold(str(flags.qsize()))}/{len(args.targets)} flags. " +
+            f"{st.bold(queue_size)} flags in the queue.")
 
 
 @stopit.threading_timeoutable()
