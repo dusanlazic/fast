@@ -1,6 +1,7 @@
 import os
 import sys
 import yaml
+import hashlib
 import threading
 import subprocess
 from importlib import import_module
@@ -16,6 +17,7 @@ DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 RUNNER_PATH = os.path.join(DIR_PATH, 'runner.py')
 
 tick_number = 0
+cached_exploits = (None, None)  # (hash, exploits)
 
 
 def main():
@@ -23,12 +25,10 @@ def main():
     setup_database()
     create_log_dir()
     game, submitter = load_config()
-    exploits = load_exploits()
 
     scheduler = BlockingScheduler()
     scheduler.add_job(
         func=run_exploits,
-        args=(exploits,),
         trigger='interval',
         seconds=game['tick_duration'],
         id='exploits',
@@ -57,11 +57,11 @@ def main():
     scheduler.start()
 
 
-def run_exploits(exploits):
+def run_exploits():
     global tick_number
 
     logger.info(f'Started tick {st.bold(str(tick_number))}. ⏱️')
-    for exploit in exploits:
+    for exploit in load_exploits():
         threading.Thread(target=run_exploit, args=(exploit,)).start()
 
     tick_number += 1
@@ -141,13 +141,26 @@ def submitter_wrapper(submit):
 
 
 def load_exploits():
-    logger.info('Loading exploits...')
+    global cached_exploits
+
     with open('fast.yaml', 'r') as file:
-        data = yaml.safe_load(file)
-        exploits = [parse_exploit_entry(exploit)
-                    for exploit in data['exploits']]
-        logger.success(f'Loaded {len(exploits)} exploits.')
-        return exploits
+        digest = hashlib.sha256(file.read().encode()).hexdigest()
+        if cached_exploits[0] == digest:
+            return cached_exploits[1]
+        
+        try:
+            file.seek(0)
+            logger.info('Reloading exploits...')
+            data = yaml.safe_load(file)
+            exploits = [parse_exploit_entry(exploit)
+                        for exploit in data['exploits']]
+            logger.success(f'Loaded {st.bold(len(exploits))} exploits.')
+            cached_exploits = (digest, exploits)
+            return exploits
+        except Exception as e:
+            logger.error(f'Failed to load new {st.bold("fast.yaml")} file. Reusing the old configuration.')
+            return cached_exploits[1]
+
 
 
 def expand_ip_range(ip_range):
