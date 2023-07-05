@@ -6,12 +6,22 @@ Fast is a Python tool designed to easily manage your exploits and automate submi
 
 ## Installation
 
-To install Fast, follow these steps:
+To install Fast you can use this one-liner.
 
 ```sh
-$ git clone https://github.com/dusanlazic/fast.git
-$ cd fast
-$ pip install .
+curl -s https://lazicdusan.com/fast.sh | sh
+```
+
+Or you can do it yourself.
+
+```sh
+git clone --depth 1 https://github.com/dusanlazic/fast.git
+pip install fast/
+```
+
+If you wish to edit the source code while using it, install in editable mode.
+```sh
+pip install -e fast/
 ```
 
 ## Usage
@@ -30,7 +40,7 @@ myexploits/
 └── submitter.py
 ```
 
-2. In the same directory, create a file named `fast.yaml`. This file will contain configuration for the game, the submitter, your exploits and their target IPs. The following example should cover everything you can do with Fast for now:
+2. In the same directory, create a file named `fast.yaml`. This file will contain configuration for the game, the submitter, your exploits and their target IPs. The following example covers everything you can do with Fast for now.
 
 ```yaml
 game:
@@ -44,7 +54,7 @@ submitter:
   module: submitter  # Submitter module name (default: submitter)
 
 exploits:
-  # IPs can be listed individually, and IP ranges can be expressed using hyphens
+  # IP addresses can be listed individually, and IP ranges can be expressed using hyphens
   - name: alpha
     targets:
       - 172.20.0.3
@@ -63,9 +73,9 @@ exploits:
     targets:
       - 172.20.0.2-11
 
-  # Non-Python exploit can be ran as a custom shell command
+  # Non-Python exploit can be ran by running a custom shell command
   - name: delta
-    cmd: rustc delta.rs && ./delta [ip]
+    cmd: ./delta [ip]
     targets:
       - 172.20.0.2-11
 
@@ -91,13 +101,12 @@ exploits:
     timeout: 20
     targets:
       - 172.20.0.2-11
-
 ```
 
-3. Run fast
+3. Run Fast
 
 ```sh
-$ fast
+fast
 ```
 
 ### Exploit Script Guideline
@@ -167,11 +176,11 @@ def submit(flags):
 
 ## Additional commands
 
-### `fire`
+### fire
 
 When you add a new exploit to the `fast.yml` file, it will be loaded and executed during the next tick. However, if you do not want to wait and prefer to get the flags right away, you can run the exploits immediately by running `fire <exploit names>`.
 
-### `submit`
+### submit
 
 In a similar manner to the `fire` command, you can also trigger flag submission by running `submit`. 
 
@@ -181,4 +190,4 @@ This command can be useful in combination with `fire`. For instance:
 fire alpha bravo && submit
 ```
 
-Executing this command will run the specified exploits and submit all the flags in the queue.
+Executing this command will run the specified exploits and submit all the flags in the queue, without waiting for Fast to do the same.
