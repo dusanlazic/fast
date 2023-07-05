@@ -3,6 +3,7 @@ import sys
 from importlib import import_module
 from fast import load_config, submitter_wrapper
 
+
 def main():
     _, submitter = load_config()
 

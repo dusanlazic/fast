@@ -36,6 +36,7 @@ myexploits/
 game:
   tick_duration: 100
   flag_format: FAST\{[a-f0-9]{40}\}  # Fast will extract the flag from your exploit's response
+  team_ip: 172.20.0.5  # Skip your own team
 
 submitter:
   tick_start_delay: 30  # Submit flags 30 seconds after the beginning of each tick
@@ -163,3 +164,21 @@ def submit(flags):
 
     return accepted_flags, rejected_flags
 ```
+
+## Additional commands
+
+### `fire`
+
+When you add a new exploit to the `fast.yml` file, it will be loaded and executed during the next tick. However, if you do not want to wait and prefer to get the flags right away, you can run the exploits immediately by running `fire <exploit names>`.
+
+### `submit`
+
+In a similar manner to the `fire` command, you can also trigger flag submission by running `submit`. 
+
+This command can be useful in combination with `fire`. For instance:
+
+```bash
+fire alpha bravo && submit
+```
+
+Executing this command will run the specified exploits and submit all the flags in the queue.

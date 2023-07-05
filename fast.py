@@ -17,15 +17,19 @@ from models import Flag, ExploitDetails
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 RUNNER_PATH = os.path.join(DIR_PATH, 'runner.py')
 
+team_ip = ''
 tick_number = 0
 cached_exploits = (None, None)  # (hash, exploits)
 
 
 def main():
+    global team_ip
+
     splash()
     setup_database()
     create_log_dir()
     game, submitter = load_config()
+    team_ip = game.get('team_ip')
 
     scheduler = BlockingScheduler()
     scheduler.add_job(
@@ -104,7 +108,8 @@ def submitter_wrapper(submit):
     if accepted:
         logger.success(f"{st.bold(len(accepted))} flags accepted. ✅")
     else:
-        logger.warning(f"No flags accepted, or your script is not returning accepted flags.")
+        logger.warning(
+            f"No flags accepted, or your script is not returning accepted flags.")
 
     if rejected:
         logger.warning(f"{st.bold(len(rejected))} flags rejected.")
@@ -150,7 +155,7 @@ def load_exploits():
         digest = hashlib.sha256(file.read().encode()).hexdigest()
         if cached_exploits[0] == digest:
             return cached_exploits[1]
-        
+
         try:
             file.seek(0)
             logger.info('Reloading exploits...')
@@ -161,9 +166,9 @@ def load_exploits():
             cached_exploits = (digest, exploits)
             return exploits
         except Exception as e:
-            logger.error(f'Failed to load new {st.bold("fast.yaml")} file. Reusing the old configuration.')
+            logger.error(
+                f'Failed to load new {st.bold("fast.yaml")} file. Reusing the old configuration.')
             return cached_exploits[1]
-
 
 
 def expand_ip_range(ip_range):
@@ -178,7 +183,7 @@ def parse_exploit_entry(entry):
     cmd = entry.get('cmd')
     module = None if cmd else (entry.get('module') or name).strip('.py')
     targets = [ip for ip_range in entry['targets']
-               for ip in expand_ip_range(ip_range)]
+               for ip in expand_ip_range(ip_range) if ip != team_ip]
     timeout = entry.get('timeout')
     env = entry.get('env') or {}
     delay = entry.get('delay')
