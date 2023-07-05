@@ -46,7 +46,7 @@ def main():
     first_run = (run_every_nth - 1) * game['tick_duration'] + delay
 
     sys.path.append(os.getcwd())
-    module = import_module(submitter['module'] or 'submitter')
+    module = import_module(submitter.get('module') or 'submitter')
     submit_func = getattr(module, 'submit')
 
     scheduler.add_job(
@@ -181,7 +181,7 @@ def expand_ip_range(ip_range):
 def parse_exploit_entry(entry):
     name = entry.get('name')
     cmd = entry.get('cmd')
-    module = None if cmd else (entry.get('module') or name).strip('.py')
+    module = None if cmd else (entry.get('module') or name).replace('.py','')
     targets = [ip for ip_range in entry['targets']
                for ip in expand_ip_range(ip_range) if ip != team_ip]
     timeout = entry.get('timeout')

@@ -78,7 +78,7 @@ def exploit_wrapper(exploit_func, target):
             ))
         else:
             logger.warning(
-                f"{st.bold(exploit_name)} failed to retrieve the flag from {st.bold(target)}. — {st.color(truncate(response_text, 50), 'yellow')}")
+                f"{st.bold(exploit_name)} failed to retrieve the flag from {st.bold(target)}. — {st.color(repr(truncate(response_text, 50)), 'yellow')}")
     except stopit.utils.TimeoutException as e:
         logger.error(
             f"{st.bold(exploit_name)} took longer than {st.bold(str(args.timeout))} seconds for {st.bold(target)}. ⌛"

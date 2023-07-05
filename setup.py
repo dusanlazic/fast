@@ -15,7 +15,7 @@ setup(
         'APScheduler'
     ],
     packages=find_packages(),
-    py_modules=['fast', 'runner'],
+    py_modules=['database', 'fast', 'fire', 'models', 'runner', 'submit'],
     entry_points= {
         'console_scripts': [
             'fast = fast:main',

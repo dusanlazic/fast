@@ -8,7 +8,7 @@ def main():
     _, submitter = load_config()
 
     sys.path.append(os.getcwd())
-    module = import_module(submitter['module'] or 'submitter')
+    module = import_module(submitter.get('module') or 'submitter')
     submit_func = getattr(module, 'submit')
 
     submitter_wrapper(submit_func)
