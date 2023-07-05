@@ -18,7 +18,9 @@ setup(
     py_modules=['fast', 'runner'],
     entry_points= {
         'console_scripts': [
-            'fast = fast:main'
+            'fast = fast:main',
+            'fire = fire:main',
+            'submit = submit:main'
         ],
     }
 )
