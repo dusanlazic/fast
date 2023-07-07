@@ -10,7 +10,7 @@ import subprocess
 from queue import Queue
 from importlib import import_module
 from util.styler import TextStyler as st
-from util.log import logger, log_error
+from util.log import logger, log_error, log_warning
 from util.helpers import truncate
 from models import Flag
 from database import db
@@ -78,7 +78,9 @@ def exploit_wrapper(exploit_func, target):
             ))
         else:
             logger.warning(
-                f"{st.bold(exploit_name)} failed to retrieve the flag from {st.bold(target)}. — {st.color(repr(truncate(response_text, 50)), 'yellow')}")
+                f"{st.bold(exploit_name)} failed to retrieve the flag from {st.bold(target)}. — {st.color(repr(truncate(response_text, 50)), 'yellow')}") 
+            log_warning(exploit_name, target, response_text)
+
     except stopit.utils.TimeoutException as e:
         logger.error(
             f"{st.bold(exploit_name)} took longer than {st.bold(str(args.timeout))} seconds for {st.bold(target)}. ⌛"
