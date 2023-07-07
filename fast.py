@@ -73,7 +73,7 @@ def run_exploits():
 
 
 def run_exploit(exploit):
-    runner_command = ['python3', RUNNER_PATH] + \
+    runner_command = ['python', RUNNER_PATH] + \
         exploit.targets + ['--name', exploit.name]
     if exploit.module:
         runner_command.extend(['--module', exploit.module])
