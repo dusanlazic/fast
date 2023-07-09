@@ -70,7 +70,7 @@ def exploit_wrapper(exploit_func, target):
             # TODO: Refactor code
             if len(flag_values) == 1:
                 logger.success(
-                    f"{st.bold(exploit_name)} retrieved the flag from {st.bold(target)}. 🚩 — {st.faint(flag_value)}")
+                    f"{st.bold(exploit_name)} retrieved the flag from {st.bold(target)}. 🚩 — {st.faint(flag_values[0])}")
 
                 flags.put(Flag(
                     value=flag_values[0],
