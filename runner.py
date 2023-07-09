@@ -64,18 +64,31 @@ def main(args):
 def exploit_wrapper(exploit_func, target):
     try:
         response_text = exploit_func(target)
-        flag_value = match_flag(response_text)
+        flag_values = match_flags(response_text)
 
-        if flag_value:
-            logger.success(
-                f"{st.bold(exploit_name)} retrieved the flag from {st.bold(target)}. 🚩 — {st.faint(flag_value)}")
+        if flag_values:
+            # TODO: Refactor code
+            if len(flag_values) == 1:
+                logger.success(
+                    f"{st.bold(exploit_name)} retrieved the flag from {st.bold(target)}. 🚩 — {st.faint(flag_value)}")
 
-            flags.put(Flag(
-                value=flag_value,
-                exploit_name=exploit_name,
-                target_ip=target,
-                status='queued'
-            ))
+                flags.put(Flag(
+                    value=flag_values[0],
+                    exploit_name=exploit_name,
+                    target_ip=target,
+                    status='queued'
+                ))
+            else:
+                logger.success(
+                    f"{st.bold(exploit_name)} retrieved multiple flags from {st.bold(target)}. 🚩")
+
+                for flag_value in flag_values:
+                    flags.put(Flag(
+                        value=flag_value,
+                        exploit_name=exploit_name,
+                        target_ip=target,
+                        status='queued'
+                    ))
         else:
             logger.warning(
                 f"{st.bold(exploit_name)} failed to retrieve the flag from {st.bold(target)}. — {st.color(repr(truncate(response_text, 50)), 'yellow')}") 
@@ -105,11 +118,9 @@ def run_shell_command(target):
     return result.stdout.strip()
 
 
-def match_flag(text):
-    match = re.search(game['flag_format'], text)
-    if match:
-        return match.group()
-    return None
+def match_flags(text):
+    matches = re.findall(game['flag_format'], text)
+    return matches if matches else None
 
 
 def load_config():
