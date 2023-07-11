@@ -19,8 +19,6 @@ exploit_name = ''
 shell_command = []
 game = []
 
-flags = Queue()
-
 
 def main(args):
     load_config()
@@ -51,47 +49,45 @@ def main(args):
     for t in threads:
         t.join()
 
-    with db.atomic():
-        Flag.bulk_create(flags.queue)
-        queue_size = Flag.select().where(Flag.status == 'queued').count()
-
-        logger.info(
-            f"{st.bold(exploit_name)} retrieved {st.bold(str(flags.qsize()))}/{len(args.targets)} flags. " +
-            f"{st.bold(queue_size)} flags in the queue.")
+    queue_size = Flag.select().where(Flag.status == 'queued').count()
+    logger.info(f"{st.bold(queue_size)} flags in the queue.")
 
 
 @stopit.threading_timeoutable()
 def exploit_wrapper(exploit_func, target):
     try:
         response_text = exploit_func(target)
-        flag_values = match_flags(response_text)
+        found_flags = match_flags(response_text)
 
-        if flag_values:
-            # TODO: Refactor code
-            if len(flag_values) == 1:
-                logger.success(
-                    f"{st.bold(exploit_name)} retrieved the flag from {st.bold(target)}. 🚩 — {st.faint(flag_values[0])}")
+        if found_flags:
+            with db.atomic():
+                # TODO: Fix concurrency issues by performing writes in a single thread
+                duplicate_flags = [flag.value for flag in Flag.select().where(
+                    Flag.value.in_(found_flags))]
+                new_flags = [flag for flag in found_flags if flag not in duplicate_flags]
+                Flag.bulk_create([Flag(value=flag, exploit_name=exploit_name, target_ip=target,
+                                  status='queued') for flag in new_flags])
+            
+            new_flags_count, duplicate_flags_count = len(new_flags), len(duplicate_flags)
 
-                flags.put(Flag(
-                    value=flag_values[0],
-                    exploit_name=exploit_name,
-                    target_ip=target,
-                    status='queued'
-                ))
-            else:
-                logger.success(
-                    f"{st.bold(exploit_name)} retrieved multiple flags from {st.bold(target)}. 🚩")
-
-                for flag_value in flag_values:
-                    flags.put(Flag(
-                        value=flag_value,
-                        exploit_name=exploit_name,
-                        target_ip=target,
-                        status='queued'
-                    ))
+            if new_flags_count == 0 and duplicate_flags_count > 0:
+                logger.warning(f"{st.bold(exploit_name)} retrieved no new flags and " +
+                               ("a duplicate flag " if duplicate_flags_count == 1 else f"{st.bold(duplicate_flags_count)} duplicate flags ") +
+                               f"from {st.bold(target)}.")
+                
+            elif new_flags_count > 0 and duplicate_flags_count > 0:
+                logger.success(f"{st.bold(exploit_name)} retrieved " +
+                               ("a new flag " if new_flags_count == 1 else f"{st.bold(new_flags_count)} new flags, and ") +
+                               ("a duplicate flag " if duplicate_flags_count == 1 else f"{st.bold(duplicate_flags_count)} duplicate flags ") +
+                               f"from {st.bold(target)}. 🚩 — {st.faint(truncate(' '.join(new_flags), 50))}")
+                
+            elif new_flags_count > 0 and duplicate_flags_count == 0:
+                logger.success(f"{st.bold(exploit_name)} retrieved " +
+                               ("a new flag " if new_flags_count == 1 else f"{st.bold(new_flags_count)} new flags, and ") +
+                               f"from {st.bold(target)}. 🚩 — {st.faint(truncate(' '.join(new_flags), 50))}")
         else:
             logger.warning(
-                f"{st.bold(exploit_name)} failed to retrieve the flag from {st.bold(target)}. — {st.color(repr(truncate(response_text, 50)), 'yellow')}") 
+                f"{st.bold(exploit_name)} retrieved no flags from {st.bold(target)}. — {st.color(repr(truncate(response_text, 50)), 'yellow')}")
             log_warning(exploit_name, target, response_text)
 
     except stopit.utils.TimeoutException as e:
