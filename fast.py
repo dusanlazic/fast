@@ -11,8 +11,7 @@ from util.helpers import seconds_from_now
 from util.styler import TextStyler as st
 from util.log import logger, create_log_dir
 from itertools import product
-from database import db
-from models import Flag, ExploitDetails
+from models import ExploitDetails
 
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 RUNNER_PATH = os.path.join(DIR_PATH, 'runner.py')
@@ -26,7 +25,6 @@ def main():
     global team_ip
 
     splash()
-    setup_database()
     create_log_dir()
     game, submitter = load_config()
     team_ip = game.get('team_ip')
@@ -40,25 +38,6 @@ def main():
         next_run_time=seconds_from_now(0)
     )
 
-    delay = submitter['tick_start_delay']
-    run_every_nth = submitter.get('run_every_nth_tick') or 1
-    interval = run_every_nth * game['tick_duration']
-    first_run = (run_every_nth - 1) * game['tick_duration'] + delay
-
-    sys.path.append(os.getcwd())
-    module = import_module(submitter.get('module') or 'submitter')
-    submit_func = getattr(module, 'submit')
-
-    scheduler.add_job(
-        func=submitter_wrapper,
-        args=(submit_func,),
-        trigger='interval',
-        seconds=interval,
-        id='submitter',
-        next_run_time=seconds_from_now(first_run)
-    )
-
-    submitter_wrapper(submit_func)  # Run submitter to submit queued flags
     scheduler.start()
 
 
@@ -91,61 +70,6 @@ def run_exploit(exploit):
                    **exploit.env, **os.environ})
 
     logger.info(f'{st.bold(exploit.name)} finished.')
-
-
-def submitter_wrapper(submit):
-    flags = [flag.value for flag in
-             Flag.select().where(Flag.status == 'queued')]
-
-    if not flags:
-        logger.info(f"No flags in the queue! Submission skipped.")
-        return
-
-    logger.info(st.bold(f"Submitting {len(flags)} flags..."))
-
-    accepted, rejected = submit(flags)
-
-    if accepted:
-        logger.success(f"{st.bold(len(accepted))} flags accepted. ✅")
-    else:
-        logger.warning(
-            f"No flags accepted, or your script is not returning accepted flags.")
-
-    if rejected:
-        logger.warning(f"{st.bold(len(rejected))} flags rejected.")
-
-    if len(flags) != len(accepted) + len(rejected):
-        logger.error(
-            f"{st.bold(len(flags) - len(accepted) - len(rejected))} responses missing. Flags may be submitted, but your stats may be inaccurate.")
-
-    with db.atomic():
-        if accepted:
-            to_accept = Flag.select().where(Flag.value.in_(accepted))
-            for flag in to_accept:
-                flag.status = 'accepted'
-            Flag.bulk_update(to_accept, fields=[Flag.status])
-
-        if rejected:
-            to_decline = Flag.select().where(Flag.value.in_(rejected))
-            for flag in to_decline:
-                flag.status = 'rejected'
-            Flag.bulk_update(to_decline, fields=[Flag.status])
-
-        queued_count = Flag.select().where(Flag.status == 'queued').count()
-        accepted_count = Flag.select().where(Flag.status == 'accepted').count()
-        rejected_count = Flag.select().where(Flag.status == 'rejected').count()
-
-    queued_count_st = st.color(
-        st.bold(queued_count), 'green') if queued_count == 0 else st.bold(queued_count)
-
-    accepted_count_st = st.color(st.bold(
-        accepted_count), 'green') if accepted_count > 0 else st.color(st.bold(accepted_count), 'yellow')
-
-    rejected_count_st = st.color(st.bold(
-        rejected_count), 'green') if rejected_count == 0 else st.color(st.bold(rejected_count), 'yellow')
-
-    logger.info(
-        f"{st.bold('Stats')} — {queued_count_st} queued, {accepted_count_st} accepted, {rejected_count_st} rejected.")
 
 
 def load_exploits():
@@ -181,7 +105,7 @@ def expand_ip_range(ip_range):
 def parse_exploit_entry(entry):
     name = entry.get('name')
     cmd = entry.get('cmd')
-    module = None if cmd else (entry.get('module') or name).replace('.py','')
+    module = None if cmd else (entry.get('module') or name).replace('.py', '')
     targets = [ip for ip_range in entry['targets']
                for ip in expand_ip_range(ip_range) if ip != team_ip]
     timeout = entry.get('timeout')
@@ -197,13 +121,6 @@ def load_config():
         logger.success(f'Fast configured successfully.')
 
         return data['game'], data['submitter']
-
-
-def setup_database():
-    db.connect()
-    db.create_tables([Flag])
-    Flag.add_index(Flag.value)
-    logger.success('Database connected.')
 
 
 def splash():

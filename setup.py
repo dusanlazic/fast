@@ -12,15 +12,17 @@ setup(
         'pyyaml',
         'peewee',
         'stopit',
+        'bottle',
         'APScheduler'
     ],
     packages=find_packages(),
-    py_modules=['database', 'fast', 'fire', 'models', 'runner', 'submit'],
+    py_modules=['database', 'fast', 'fire', 'models', 'runner', 'submit', 'server', 'client'],
     entry_points= {
         'console_scripts': [
             'fast = fast:main',
             'fire = fire:main',
-            'submit = submit:main'
+            'submit = submit:main',
+            'submitter = server:main'
         ],
     }
 )

@@ -5,24 +5,24 @@ import yaml
 import shlex
 import stopit
 import argparse
+import requests
 import threading
 import subprocess
-from queue import Queue
+from client import SubmitClient
 from importlib import import_module
 from util.styler import TextStyler as st
 from util.log import logger, log_error, log_warning
 from util.helpers import truncate
-from models import Flag
-from database import db
 
 exploit_name = ''
 shell_command = []
-game = []
+game, submitter = [], []
+
+client: SubmitClient = None
 
 
 def main(args):
     load_config()
-    connect_to_db()
 
     global exploit_name, shell_command
     exploit_name = args.name
@@ -43,13 +43,16 @@ def main(args):
         for target in args.targets
     ]
 
+    connect_to_server()
+
     for t in threads:
         t.start()
 
     for t in threads:
         t.join()
 
-    queue_size = Flag.select().where(Flag.status == 'queued').count()
+    # TODO: Get queue size through REST call
+    queue_size = client.get_queue_size()
     logger.info(f"{st.bold(queue_size)} flags in the queue.")
 
 
@@ -60,14 +63,8 @@ def exploit_wrapper(exploit_func, target):
         found_flags = match_flags(response_text)
 
         if found_flags:
-            with db.atomic():
-                # TODO: Fix concurrency issues by performing writes in a single thread
-                duplicate_flags = [flag.value for flag in Flag.select().where(
-                    Flag.value.in_(found_flags))]
-                new_flags = [flag for flag in found_flags if flag not in duplicate_flags]
-                Flag.bulk_create([Flag(value=flag, exploit_name=exploit_name, target_ip=target,
-                                  status='queued') for flag in new_flags])
-            
+            response = client.enqueue(found_flags, exploit_name, target)
+            new_flags, duplicate_flags = response['new'], response['duplicates'],
             new_flags_count, duplicate_flags_count = len(new_flags), len(duplicate_flags)
 
             if new_flags_count == 0 and duplicate_flags_count > 0:
@@ -83,7 +80,7 @@ def exploit_wrapper(exploit_func, target):
                 
             elif new_flags_count > 0 and duplicate_flags_count == 0:
                 logger.success(f"{st.bold(exploit_name)} retrieved " +
-                               ("a new flag " if new_flags_count == 1 else f"{st.bold(new_flags_count)} new flags, and ") +
+                               ("a new flag " if new_flags_count == 1 else f"{st.bold(new_flags_count)} new flags ") +
                                f"from {st.bold(target)}. 🚩 — {st.faint(truncate(' '.join(new_flags), 50))}")
         else:
             logger.warning(
@@ -120,15 +117,30 @@ def match_flags(text):
 
 
 def load_config():
-    global game
+    global game, submitter
 
     with open('fast.yaml', 'r') as file:
         data = yaml.safe_load(file)
-        game = data['game']
+        game, submitter = data['game'], data['submitter']
 
 
-def connect_to_db():
-    db.connect()
+def connect_to_server():
+    global client
+
+    client = SubmitClient(
+        host=submitter['host'],
+        port=submitter['port'],
+        player=submitter.get('player') or 'anon'
+    )
+
+    try:
+        client.test_connection()
+        # TODO: Implement an alternative store for flags while the server is down
+    except Exception as e:
+        exception_name = '.'.join([type(e).__module__, type(e).__qualname__])
+        logger.error(f"Failed to connect to the submitter server at http://{submitter['host']}:{submitter['port']}. — {st.color(exception_name, 'red')}")
+
+        log_error('submit_server', 'none', e)
 
 
 if __name__ == "__main__":
