@@ -6,7 +6,9 @@ Fast is a Python tool designed to easily manage your exploits and automate submi
 
 ## Installation
 
-> Remember to create a Python virtual environment before installing: `python3 -m venv venv && source venv/bin/activate`
+> Remember to create a Python virtual environment before installing:
+> 
+> `python3 -m venv venv && source venv/bin/activate`
 
 To install Fast you can use this one-liner.
 
@@ -28,7 +30,7 @@ pip install -e fast/
 
 ## Usage
 
-### Setup server
+### Setup server 🗄
 
 1. After installing Fast on your submitter-dedicated machine, navigate to a preferably empty directory and create a file named `server.yaml`. This file will contain the configuration for the game, submitter and server. The following example covers everything you should configure.
 
@@ -56,7 +58,9 @@ server:
 server
 ```
 
-### Setup client
+That's it. Fast server will be ready to receive the flags and submit them automatically.
+
+### Setup client 🤖
 
 1. After installing Fast on a player machine, navigate to the directory containing your exploit scripts. Directory structure may look like this, and exploits should follow this [simple guideline](#exploit-script-guidelines).
 
@@ -120,15 +124,17 @@ exploits:
       - 172.20.0.2-11
 ```
 
-3. Run Fast
+3. Run client.
 
 ```sh
 fast
 ```
 
+Your exploits will now be executed during each tick. At the beginning of a tick, Fast will check if there were any changes in your exploit configuration and apply them.
+
 ### Exploit Script Guideline
 
-#### Python scripts
+#### Python scripts 🐍
 
 To work properly with Fast, your script should have a function named `exploit` that takes the target's IP address as the only parameter, and returns the flag (or some text containing the flag) as a string. That's about it.
 
@@ -141,7 +147,7 @@ def exploit(target):
     return requests.get(f"http://{target}:5000/flag").text
 ```
 
-#### Other scripts
+#### Other scripts 🦀💲☕
 
 For non-Python scripts, just provide a way to pass the target's IP address as a command line argument, and make sure to output nothing but the flag (or some text containing the flag) on `stdout`.
 
@@ -212,11 +218,11 @@ Executing this command will run the specified exploits and tell the server to su
 
 ## Planned features and goals
 
-[] - Validate configs when starting
-[] - Handle connection failure with the server and provide a fallback for keeping the flags locally.
-[] - Guarantee that every non-duplicate retrieved flag will be submitted.
-[] - Synchronizing clients with the server
-[] - Verbose flag history (track OLD, DUP, etc.)
-[] - Restrict malicious actors from accessing the server
-[] - Readable server logs from player machines
-[] - Stats, alerts, web dashboard, etc.
+- [ ] Validate configs when starting
+- [ ] Handle connection failure with the server and provide a fallback for keeping the flags locally.
+- [ ] Guarantee that every non-duplicate retrieved flag will be submitted.
+- [ ] Synchronizing clients with the server.
+- [ ] Verbose flag history (track OLD, DUP, etc.)
+- [ ] Restrict malicious actors from accessing the server.
+- [ ] Readable server logs from player machines.
+- [ ] Stats, alerts, web dashboard, etc.
