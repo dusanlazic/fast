@@ -7,6 +7,7 @@ import subprocess
 from itertools import product
 from models import ExploitDetails
 from submit_handler import SubmitClient
+from datetime import datetime, timedelta
 from util.styler import TextStyler as st
 from util.helpers import seconds_from_now
 from util.log import logger, create_log_dir
@@ -27,6 +28,7 @@ def main():
     splash()
     create_log_dir()
     load_config()
+    sync()
 
     scheduler = BlockingScheduler()
     scheduler.add_job(
@@ -41,7 +43,12 @@ def main():
 
 
 def run_exploits():
-    for exploit in load_exploits():
+    exploits = load_exploits()
+    if not exploits:
+        logger.info(f'No exploits defined in {st.bold("fast.yaml")}. Skipped.')
+        return
+
+    for exploit in exploits:
         threading.Thread(target=run_exploit, args=(exploit,)).start()
 
 
@@ -78,6 +85,10 @@ def load_exploits():
             file.seek(0)
             logger.info('Reloading exploits...')
             data = yaml.safe_load(file)
+
+            if not data.get('exploits'):
+                return
+
             exploits = [parse_exploit_entry(exploit)
                         for exploit in data['exploits']]
             logger.success(f'Loaded {st.bold(len(exploits))} exploits.')
@@ -134,6 +145,19 @@ def load_config():
 
     logger.success(f'Fast client configured successfully.')
     return config
+
+
+def sync():
+    connect = config['connect']
+    sync_data = SubmitClient(
+        host=connect['host'],
+        port=connect['port'],
+        player=connect['player']
+    ).sync()
+
+    wait_until = datetime.now() + timedelta(seconds=sync_data['next_delta'])
+    logger.info(f'Synchronizing with the server... Tick will start at {st.bold(wait_until.strftime("%H:%M:%S"))}.')
+    time.sleep(sync_data['next_delta'])
 
 
 def splash():
