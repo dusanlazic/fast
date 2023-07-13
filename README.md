@@ -218,11 +218,12 @@ Executing this command will run the specified exploits and tell the server to su
 
 ## Planned features and goals
 
-- [ ] Validate configs when starting
+- [ ] Validate configs when starting.
 - [ ] Handle connection failure with the server and provide a fallback for keeping the flags locally.
 - [ ] Guarantee that every non-duplicate retrieved flag will be submitted.
-- [ ] Synchronizing clients with the server.
+- [x] Synchronizing clients with the server.
 - [ ] Verbose flag history (track OLD, DUP, etc.)
 - [ ] Restrict malicious actors from accessing the server.
 - [ ] Readable server logs from player machines.
 - [ ] Stats, alerts, web dashboard, etc.
+- [ ] Optional centralized client integrated with git repository.
