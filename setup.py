@@ -16,13 +16,13 @@ setup(
         'APScheduler'
     ],
     packages=find_packages(),
-    py_modules=['database', 'fast', 'fire', 'models', 'runner', 'submit', 'server', 'client'],
+    py_modules=['client', 'server', 'runner', 'database', 'models', 'submit_handler', 'submit', 'fire'],
     entry_points= {
         'console_scripts': [
-            'fast = fast:main',
+            'fast = client:main',
+            'server = server:main'
             'fire = fire:main',
             'submit = submit:main',
-            'submitter = server:main'
         ],
     }
 )

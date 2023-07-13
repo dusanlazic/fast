@@ -1,9 +1,9 @@
+import client
 import argparse
 import threading
-import fast
-from fast import load_exploits, load_config, run_exploit
 from util.log import logger
 from util.styler import TextStyler as st
+from client import load_exploits, load_config, run_exploit
 
 
 def main():
@@ -13,8 +13,7 @@ def main():
                         help="Names of the exploits as in fast.yaml")
     args = parser.parse_args()
 
-    game, _ = load_config()
-    fast.team_ip = game.get('team_ip')
+    client.config = load_config()
     exploits = load_exploits()
 
     selected_exploits = [e for e in exploits if e.name in args.names]

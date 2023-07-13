@@ -5,18 +5,20 @@ import yaml
 import shlex
 import stopit
 import argparse
-import requests
 import threading
 import subprocess
-from client import SubmitClient
+from util.helpers import truncate
 from importlib import import_module
+from submit_handler import SubmitClient
 from util.styler import TextStyler as st
 from util.log import logger, log_error, log_warning
-from util.helpers import truncate
 
 exploit_name = ''
 shell_command = []
-game, submitter = [], []
+config = {
+    'connect': None,
+    'game': None
+}
 
 client: SubmitClient = None
 
@@ -43,16 +45,13 @@ def main(args):
         for target in args.targets
     ]
 
-    connect_to_server()
-
     for t in threads:
         t.start()
 
     for t in threads:
         t.join()
 
-    # TODO: Get queue size through REST call
-    queue_size = client.get_queue_size()
+    queue_size = client.get_stats()['queued']
     logger.info(f"{st.bold(queue_size)} flags in the queue.")
 
 
@@ -65,19 +64,20 @@ def exploit_wrapper(exploit_func, target):
         if found_flags:
             response = client.enqueue(found_flags, exploit_name, target)
             new_flags, duplicate_flags = response['new'], response['duplicates'],
-            new_flags_count, duplicate_flags_count = len(new_flags), len(duplicate_flags)
+            new_flags_count, duplicate_flags_count = len(
+                new_flags), len(duplicate_flags)
 
             if new_flags_count == 0 and duplicate_flags_count > 0:
                 logger.warning(f"{st.bold(exploit_name)} retrieved no new flags and " +
                                ("a duplicate flag " if duplicate_flags_count == 1 else f"{st.bold(duplicate_flags_count)} duplicate flags ") +
                                f"from {st.bold(target)}.")
-                
+
             elif new_flags_count > 0 and duplicate_flags_count > 0:
                 logger.success(f"{st.bold(exploit_name)} retrieved " +
                                ("a new flag " if new_flags_count == 1 else f"{st.bold(new_flags_count)} new flags, and ") +
                                ("a duplicate flag " if duplicate_flags_count == 1 else f"{st.bold(duplicate_flags_count)} duplicate flags ") +
                                f"from {st.bold(target)}. 🚩 — {st.faint(truncate(' '.join(new_flags), 50))}")
-                
+
             elif new_flags_count > 0 and duplicate_flags_count == 0:
                 logger.success(f"{st.bold(exploit_name)} retrieved " +
                                ("a new flag " if new_flags_count == 1 else f"{st.bold(new_flags_count)} new flags ") +
@@ -112,35 +112,29 @@ def run_shell_command(target):
 
 
 def match_flags(text):
-    matches = re.findall(game['flag_format'], text)
+    matches = re.findall(config['game']['flag_format'], text)
     return matches if matches else None
 
 
 def load_config():
-    global game, submitter
+    global config, client
 
     with open('fast.yaml', 'r') as file:
         data = yaml.safe_load(file)
-        game, submitter = data['game'], data['submitter']
 
-
-def connect_to_server():
-    global client
-
+    # TODO: Handle connection failure and provide a fallback way of
+    # keeping the flags if the server is down.
+    connect = data['connect']
     client = SubmitClient(
-        host=submitter['host'],
-        port=submitter['port'],
-        player=submitter.get('player') or 'anon'
+        host=connect['host'],
+        port=connect['port'],
+        player=connect['player']
     )
 
-    try:
-        client.test_connection()
-        # TODO: Implement an alternative store for flags while the server is down
-    except Exception as e:
-        exception_name = '.'.join([type(e).__module__, type(e).__qualname__])
-        logger.error(f"Failed to connect to the submitter server at http://{submitter['host']}:{submitter['port']}. — {st.color(exception_name, 'red')}")
-
-        log_error('submit_server', 'none', e)
+    config = {
+        'connect': connect,
+        'game': client.get_game_config()
+    }
 
 
 if __name__ == "__main__":

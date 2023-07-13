@@ -2,9 +2,11 @@
 
 Fast is a Python tool designed to easily manage your exploits and automate submitting flags in A/D competitions. The goal of Fast is to make writing exploits your only concern in A/D competitions, while maintaining simplicity.
 
-> Keep in mind that this tool is in early stages of development and at this moment it is still an experimental tool. Fast is yet to be improved and battle tested. :)
+> Keep in mind that this tool is in early stages of development and at this moment it is still an experimental tool. Fast is yet to be improved and more battle tested. :)
 
 ## Installation
+
+> Remember to create a Python virtual environment before installing: `python3 -m venv venv && source venv/bin/activate`
 
 To install Fast you can use this one-liner.
 
@@ -26,7 +28,37 @@ pip install -e fast/
 
 ## Usage
 
-1. After installing Fast, navigate to the directory containing your exploit scripts and the flag submitting script. Directory structure may look like this, and exploits should follow this [simple guideline](#exploit-script-guidelines).
+### Setup server
+
+1. After installing Fast on your submitter-dedicated machine, navigate to a preferably empty directory and create a file named `server.yaml`. This file will contain the configuration for the game, submitter and server. The following example covers everything you should configure.
+
+```yaml
+game:
+  tick_duration: 120
+  flag_format: FAST\{[a-f0-9]{10}\}  # Fast will extract all the flags from your exploit's response
+  team_ip: 172.20.0.5  # Skip your own team. If your team has multiple addresses, use a list: [172.20.0.5, 172.20.1.5, 172.20.2.5]
+
+submitter:
+  delay: 10  # Submit flags 10 seconds after the beginning of each tick
+  run_every_nth_tick: 3  # If flags stay valid for multiple ticks (e.g. 3), you can submit on every 3rd tick instead (default: 1)
+  module: submitter  # Submitter module name (default: submitter)
+
+server:
+  host: 0.0.0.0  # Accept connections from any network interface or IP address
+  port: 2023  # Run Fast server on port 2023
+```
+
+2. In the same directory, create a submitter script. If you did not specify `module` in `server.yaml`, name it `submitter.py`. Otherwise, name it to match your custom module name. To work properly with Fast, submitter should follow this [submitter script guideline](#submitter-script-guideline).
+
+3. Run server.
+
+```
+server
+```
+
+### Setup client
+
+1. After installing Fast on a player machine, navigate to the directory containing your exploit scripts. Directory structure may look like this, and exploits should follow this [simple guideline](#exploit-script-guidelines).
 
 ```
 myexploits/
@@ -36,22 +68,16 @@ myexploits/
 ├── delta.rs
 ├── echo.py
 ├── foxtrot.py
-├── golf.sh
-└── submitter.py
+└── golf.sh
 ```
 
-2. In the same directory, create a file named `fast.yaml`. This file will contain configuration for the game, the submitter, your exploits and their target IPs. The following example covers everything you can do with Fast for now.
+2. In the same directory, create a file named `fast.yaml`. This file will contain configuration for the server connection, your exploits and their target IPs. The following example covers everything you can do with Fast for now.
 
 ```yaml
-game:
-  tick_duration: 100
-  flag_format: FAST\{[a-f0-9]{40}\}  # Fast will extract the flag from your exploit's response
-  team_ip: 172.20.0.5  # Skip your own team
-
-submitter:
-  tick_start_delay: 30  # Submit flags 30 seconds after the beginning of each tick
-  run_every_nth_tick: 3  # If flags stay valid for multiple ticks (e.g. 3), submit on every 3rd tick instead (default: 1)
-  module: submitter  # Submitter module name (default: submitter)
+connect:
+  host: 192.168.1.49  # IP address of the machine that is running Fast server
+  port: 2023
+  player: s4ndu  # Your username to identify your actions in logs
 
 exploits:
   # IP addresses can be listed individually, and IP ranges can be expressed using hyphens
@@ -87,18 +113,9 @@ exploits:
     targets:
       - 172.20.0.2-11
 
-  # Too many exploits consuming resources on each tick? Arrange them by setting a delay
+  # Spikes in CPU and network usage in each tick? Arrange exploits by setting a delay
   - name: foxtrot
     delay: 5
-    targets:
-      - 172.20.0.2-11
-
-  # Choose things that you need!
-  - name: golf (bash)
-    cmd: bash golf.sh [ip]
-    env:
-      API_KEY: 0898ef92b120
-    timeout: 20
     targets:
       - 172.20.0.2-11
 ```
@@ -190,4 +207,16 @@ This command can be useful in combination with `fire`. For instance:
 fire alpha bravo && submit
 ```
 
-Executing this command will run the specified exploits and submit all the flags in the queue, without waiting for Fast to do the same.
+Executing this command will run the specified exploits and tell the server to submit all the flags in the queue, without waiting for the next tick.
+
+
+## Planned features and goals
+
+[] - Validate configs when starting
+[] - Handle connection failure with the server and provide a fallback for keeping the flags locally.
+[] - Guarantee that every non-duplicate retrieved flag will be submitted.
+[] - Synchronizing clients with the server
+[] - Verbose flag history (track OLD, DUP, etc.)
+[] - Restrict malicious actors from accessing the server
+[] - Readable server logs from player machines
+[] - Stats, alerts, web dashboard, etc.
