@@ -8,7 +8,7 @@ headers = {
 
 
 class SubmitClient(object):
-    def __init__(self, host, port, player):
+    def __init__(self, host, port, player='anon'):
         self.host = host
         self.port = port
         self.player = player

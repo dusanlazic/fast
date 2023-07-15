@@ -16,8 +16,12 @@ from util.log import logger, log_error, log_warning
 exploit_name = ''
 shell_command = []
 config = {
-    'connect': None,
-    'game': None
+    'connect': {
+        'host': '127.0.0.1',
+        'port': '2023',
+        'player': 'anon'
+    },
+    'game': {}
 }
 
 client: SubmitClient = None
@@ -119,6 +123,7 @@ def match_flags(text):
 def load_config():
     global config, client
 
+    # TODO: Disallow reloading connection config and make it immutable after running client.
     with open('fast.yaml', 'r') as file:
         data = yaml.safe_load(file)
 

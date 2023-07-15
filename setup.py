@@ -20,7 +20,7 @@ setup(
     entry_points= {
         'console_scripts': [
             'fast = client:main',
-            'server = server:main'
+            'server = server:main',
             'fire = fire:main',
             'submit = submit:main',
         ],
