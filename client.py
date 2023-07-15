@@ -174,6 +174,13 @@ def setup_handler():
 
     # Fetch, apply and persist server's game configuration
     logger.info('Fetching game config...')
+
+    if connect.get('password'):
+        conn_str = f"{connect['protocol']}://{connect['player']}:***@{connect['host']}:{connect['port']}"
+    else:
+        conn_str = f"{connect['protocol']}://{connect['host']}:{connect['port']}"
+
+    logger.info(f"Connecting to {st.color(conn_str, 'cyan')}")
     handler = SubmitClient(connect)
 
     config_repr = f"{handler.game['tick_duration']}s tick, {handler.game['flag_format']}, {' '.join(handler.game['team_ip'])}"

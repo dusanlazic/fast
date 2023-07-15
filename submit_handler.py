@@ -48,7 +48,12 @@ class SubmitClient(object):
         host = self.connect['host']
         port = self.connect['port']
 
-        self.url = f"{protocol}://{host}:{port}"
+        if self.connect.get('password') != None:
+            user = self.connect['player']
+            password = self.connect['password']
+            self.url = f"{protocol}://{user}:{password}@{host}:{port}"
+        else:
+            self.url = f"{protocol}://{host}:{port}"
 
     def sync(self):
         response = requests.get(f'{self.url}/sync')

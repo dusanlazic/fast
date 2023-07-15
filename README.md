@@ -224,7 +224,7 @@ Executing this command will run the specified exploits and tell the server to su
 - [ ] Guarantee that every non-duplicate retrieved flag will be submitted.
 - [x] Synchronizing clients with the server.
 - [ ] Verbose flag history (track OLD, DUP, etc.)
-- [ ] Restrict malicious actors from accessing the server (password protect).
+- [x] Restrict malicious actors from accessing the server (basic auth).
 - [ ] Support HTTPS to prevent packet sniffing for flags
 - [ ] Readable server logs from player machines.
 - [ ] Stats, alerts, web dashboard, etc.

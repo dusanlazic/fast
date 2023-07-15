@@ -1,9 +1,10 @@
 import os
 import sys
 import yaml
+import functools
 from importlib import import_module
 from datetime import datetime, timedelta
-from bottle import Bottle, request, response
+from bottle import Bottle, request, auth_basic
 from apscheduler.schedulers.background import BackgroundScheduler
 from models import Flag
 from database import db
@@ -75,7 +76,23 @@ def main():
     )
 
 
+def authenticate(user, password):
+    return password == config['server']['password']
+
+
+def basic(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        if config['server'].get('password'): 
+            protected_func = auth_basic(authenticate)(func)
+            return protected_func(*args, **kwargs)
+        else:
+            return func(*args, **kwargs)
+    return wrapper
+
+
 @app.route('/enqueue', method='POST')
+@basic
 def enqueue():
     flags = request.json['flags']
     exploit_name = request.json['exploit_name']
@@ -102,6 +119,7 @@ def enqueue():
 
 
 @app.route('/sync', method='GET')
+@basic
 def sync():
     now: datetime = datetime.now()
     next_tick_start: datetime = tick_start + \
@@ -117,11 +135,13 @@ def sync():
 
 
 @app.route('/config', method='GET')
+@basic
 def get_config():
     return dict(config)
 
 
 @app.route('/stats', method='GET')
+@basic
 def get_stats():
     return dict({
         'queued': Flag.select().where(Flag.status == 'queued').count(),
@@ -131,6 +151,7 @@ def get_stats():
 
 
 @app.route('/trigger-submit', method='POST')
+@basic
 def trigger_submit():
     logger.info(f"Submitter triggered manually by {st.bold(request.json['player'])}.")
     submitter_wrapper(submit_func)
@@ -233,11 +254,13 @@ def load_config():
     if type(config['game']['team_ip']) != list:
         config['game']['team_ip'] = [config['game']['team_ip']]
 
-    url = st.color(
-            f'http://{config["server"]["host"]}:{config["server"]["port"]}', 'green')
+    if config['server'].get('password'):
+        conn_str = f"http://username:***@{config['server']['host']}:{config['server']['port']}"
+    else:
+        conn_str = f"http://{config['server']['host']}:{config['server']['port']}"
 
     logger.success(f'Fast server configured successfully.')
-    logger.info(f'Server will run at {url}.')        
+    logger.info(f'Server will run at {st.color(conn_str, "cyan")}.')
 
 
 def splash():

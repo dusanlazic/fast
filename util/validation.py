@@ -80,6 +80,9 @@ connect_schema = {
             "type": "string",
             "maxLength": 20
         },
+        "password": {
+            "type": "string"
+        }
     },
     "additionalProperties": False
 }
@@ -171,6 +174,7 @@ server_schema = {
     "properties": {
         "host": {"type": "string", "format": "hostname"},
         "port": {"type": "integer", "minimum": 1024, "maximum": 65535},
+        "password": {"type": "string"}
     },
     "additionalProperties": False,
 }
