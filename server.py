@@ -10,6 +10,7 @@ from database import db
 from util.log import logger
 from util.styler import TextStyler as st
 from util.helpers import seconds_from_now, truncate
+from util.validation import validate_data, validate_delay, server_yaml_schema
 
 app = Bottle()
 
@@ -217,20 +218,26 @@ def tick_clock():
 
 
 def load_config():
-    global config
-
+    # Load server.yaml
     with open('server.yaml', 'r') as file:
-        config = yaml.safe_load(file)
-        # TODO: Validate configuration
+        yaml_data = yaml.safe_load(file)
 
-        if type(config['game']['team_ip']) != list:
-            config['game']['team_ip'] = [config['game']['team_ip']]
+    # Load and validate server config
+    if not validate_data(yaml_data, server_yaml_schema, custom=validate_delay):
+        logger.error(f"Fix errors in {st.bold('server.yaml')} and rerun.")
+        exit(1)
 
-        connect_string = st.color(
+    config.update(yaml_data)
+
+    # Wrap single team ip in a list
+    if type(config['game']['team_ip']) != list:
+        config['game']['team_ip'] = [config['game']['team_ip']]
+
+    url = st.color(
             f'http://{config["server"]["host"]}:{config["server"]["port"]}', 'green')
 
-        logger.success(f'Fast server configured successfully.')
-        logger.info(f'Server will run at {connect_string}.')
+    logger.success(f'Fast server configured successfully.')
+    logger.info(f'Server will run at {url}.')        
 
 
 def splash():

@@ -12,15 +12,17 @@ def validate_data(data, schema, custom=None):
 
         return True
     except ValidationError as e:
-        logger.error(f"Error found in field {st.bold(e.path[-1])}: {e.message}")
+        path = '.'.join((str(x) for x in e.path))
+        logger.error(f"Error found in field {st.bold(path)}: {e.message}")
         return False
 
 
 def validate_targets(exploits):
-    for exploit in exploits:
-        for target in exploit['targets']:
+    for exploit_idx, exploit in enumerate(exploits):
+        for target_idx, target in enumerate(exploit['targets']):
             if not validate_ip_range(target):
-                raise ValidationError(f"Target '{st.bold(target)}' in exploit '{st.bold(exploit['name'])}' is not a valid IP or IP range.")
+                raise ValidationError(f"Target '{st.bold(target)}' in exploit '{st.bold(exploit['name'])}' is not a valid IP or IP range.",
+                                      path=['exploits', exploit_idx, 'targets', target_idx])
 
 
 def validate_quartet(quartet):
@@ -48,6 +50,14 @@ def validate_ip_range(ip_range):
     quartets = ip_range.split(".")
 
     return len(quartets) == 4 and all(validate_range_quartet(quartet) for quartet in quartets)
+
+
+def validate_delay(server_yaml_data):
+    tick_duration = server_yaml_data['game']['tick_duration']
+    delay = server_yaml_data['submitter']['delay']
+
+    if delay >= tick_duration:
+        raise ValidationError(f"Submitter delay ({delay}s) takes longer than the tick itself ({tick_duration}s).", path=['submitter', 'delay'])
 
 
 connect_schema = {
@@ -107,7 +117,8 @@ exploit_schema = {
         "targets": {
             "type": "array",
             "items": {
-                "type": "string"
+                "type": "string",
+                "format": "hostname"
             }
         },
     },
@@ -119,4 +130,58 @@ exploit_schema = {
 exploits_schema = {
     "type": "array",
     "items": exploit_schema
+}
+
+
+game_schema = {
+    "type": "object",
+    "properties": {
+        "tick_duration": {
+            "type": "number",
+            "exclusiveMinimum": 0
+        },
+        "flag_format": {
+            "type": "string"
+        },
+        "team_ip": {
+            "oneOf": [
+                {"type": "string", "format": "hostname"},
+                {"type": "array", "items": {"type": "string", "format": "hostname"}},
+            ]
+        },
+    },
+    "required": ["tick_duration", "flag_format", "team_ip"],
+    "additionalProperties": False,
+}
+
+
+submitter_schema = {
+    "type": "object",
+    "properties": {
+        "delay": {"type": "number", "exclusiveMinimum": 0},
+        "module": {"type": "string"},
+    },
+    "required": ["delay"],
+    "additionalProperties": False,
+}
+
+
+server_schema = {
+    "type": "object",
+    "properties": {
+        "host": {"type": "string", "format": "hostname"},
+        "port": {"type": "integer", "minimum": 1024, "maximum": 65535},
+    },
+    "additionalProperties": False,
+}
+
+
+server_yaml_schema = {
+    "type": "object",
+    "properties": {
+        "game": game_schema,
+        "submitter": submitter_schema,
+        "server": server_schema,
+    },
+    "required": ["game", "submitter", "server"],
 }
