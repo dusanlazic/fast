@@ -115,9 +115,9 @@ def sync():
     })
 
 
-@app.route('/game', method='GET')
-def get_game_config():
-    return dict(config['game'])
+@app.route('/config', method='GET')
+def get_config():
+    return dict(config)
 
 
 @app.route('/stats', method='GET')

@@ -219,7 +219,7 @@ Executing this command will run the specified exploits and tell the server to su
 ## Planned features and goals
 
 - [ ] Validate configs when starting.
-- [ ] Make some client configuration (e.g. `connect`) immutable after starting.
+- [x] Make some client configuration (e.g. `connect`) immutable after starting.
 - [ ] Handle connection failure with the server and provide a fallback for keeping the flags locally.
 - [ ] Guarantee that every non-duplicate retrieved flag will be submitted.
 - [x] Synchronizing clients with the server.

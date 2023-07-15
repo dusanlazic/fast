@@ -19,13 +19,12 @@ RUNNER_PATH = os.path.join(DIR_PATH, 'runner.py')
 
 
 cached_exploits = (None, None)  # (hash, exploits)
-config = {
-    'connect': {
-        'host': '127.0.0.1',
-        'port': '2023',
-        'player': 'anon'
-    },
-    'game': {}
+handler: SubmitClient = None
+connect = {
+    'protocol': 'http',  # TODO: Support https
+    'host': '127.0.0.1',
+    'port': '2023',
+    'player': 'anon'
 }
 
 
@@ -33,13 +32,13 @@ def main():
     splash()
     create_log_dir()
     load_config()
-    sync()
+    setup_handler()
 
     scheduler = BlockingScheduler()
     scheduler.add_job(
         func=run_exploits,
         trigger='interval',
-        seconds=config['game']['tick_duration'],
+        seconds=handler.game['tick_duration'],
         id='exploits',
         next_run_time=seconds_from_now(0)
     )
@@ -134,7 +133,7 @@ def parse_exploit_entry(entry):
     cmd = entry.get('cmd')
     module = None if cmd else (entry.get('module') or name).replace('.py', '')
     targets = [ip for ip_range in entry['targets']
-               for ip in expand_ip_range(ip_range) if ip not in config['game']['team_ip']]
+               for ip in expand_ip_range(ip_range) if ip not in handler.game['team_ip']]
     timeout = entry.get('timeout')
     env = entry.get('env') or {}
     delay = entry.get('delay')
@@ -151,45 +150,37 @@ def load_config():
     logger.info('Loading connection config...')
     connect_data = yaml_data.get('connect')
     if connect_data:
-        config['connect'].update(connect_data)
+        connect.update(connect_data)
 
-        if not validate_data(connect_data, connect_schema):
+        if not validate_data(connect, connect_schema):
             logger.error(f"Fix errors in {st.bold('connect')} section in {st.bold('fast.yaml')} and rerun.")
             exit(1)
 
     # Load and validate exploits config
+    logger.info('Checking exploits config...')
     exploits_data = yaml_data.get('exploits')
     if not exploits_data:
         print(exploits_data)
         logger.warning(f"{st.bold('exploits')} section is missing in {st.bold('fast.yaml')}. Please add {st.bold('exploits')} section to start running exploits in the next tick.")
     elif exploits_data and not validate_data(exploits_data, exploits_schema, custom=validate_targets):
         logger.error(f"Fix errors in {st.bold('exploits')} section in {st.bold('fast.yaml')} and rerun.")
-        exit(1)  
+        exit(1)
     
-    # Fetch game config from server
+    logger.success('No errors found in exploits config.')
+
+
+def setup_handler():
+    global handler
+
+    # Fetch, apply and persist server's game configuration
     logger.info('Fetching game config...')
-    game_data = SubmitClient(
-        host=config['connect']['host'],
-        port=config['connect']['port']
-    ).get_game_config(force_fetch=True)
+    handler = SubmitClient(connect)
 
-    # Update game config
-    config['game'].update(game_data)
+    config_repr = f"{handler.game['tick_duration']}s tick, {handler.game['flag_format']}, {' '.join(handler.game['team_ip'])}"
+    logger.success(f'Game configured successfully. — {st.faint(config_repr)}')
 
-    logger.success(f'Fast client configured successfully.')
-    return config
-
-
-def sync():
-    connect = config['connect']
-    sync_data = SubmitClient(
-        host=connect['host'],
-        port=connect['port']
-    ).sync()
-
-    wait_until = datetime.now() + timedelta(seconds=sync_data['next_delta'])
-    logger.info(f'Synchronizing with the server... Tick will start at {st.bold(wait_until.strftime("%H:%M:%S"))}.')
-    time.sleep(sync_data['next_delta'])
+    # Synchronize client with server's tick clock
+    handler.sync()
 
 
 def splash():

@@ -53,6 +53,10 @@ def validate_ip_range(ip_range):
 connect_schema = {
     "type": "object",
     "properties": {
+        "protocol": {
+            "type": "string",
+            "enum": ["http"]  # TODO: Support https
+        },
         "host": {
             "type": "string",
             "format": "hostname",

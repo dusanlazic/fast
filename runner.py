@@ -15,22 +15,15 @@ from util.log import logger, log_error, log_warning
 
 exploit_name = ''
 shell_command = []
-config = {
-    'connect': {
-        'host': '127.0.0.1',
-        'port': '2023',
-        'player': 'anon'
-    },
-    'game': {}
-}
+handler: SubmitClient = None
 
-client: SubmitClient = None
+# TODO: Handle connection failure and provide a fallback way of
+# keeping the flags if the server is down.
 
 
 def main(args):
-    load_config()
-
-    global exploit_name, shell_command
+    global exploit_name, shell_command, handler
+    handler = SubmitClient()
     exploit_name = args.name
 
     if args.cmd:
@@ -55,9 +48,6 @@ def main(args):
     for t in threads:
         t.join()
 
-    queue_size = client.get_stats()['queued']
-    logger.info(f"{st.bold(queue_size)} flags in the queue.")
-
 
 @stopit.threading_timeoutable()
 def exploit_wrapper(exploit_func, target):
@@ -66,7 +56,7 @@ def exploit_wrapper(exploit_func, target):
         found_flags = match_flags(response_text)
 
         if found_flags:
-            response = client.enqueue(found_flags, exploit_name, target)
+            response = handler.enqueue(found_flags, exploit_name, target)
             new_flags, duplicate_flags = response['new'], response['duplicates'],
             new_flags_count, duplicate_flags_count = len(
                 new_flags), len(duplicate_flags)
@@ -116,30 +106,8 @@ def run_shell_command(target):
 
 
 def match_flags(text):
-    matches = re.findall(config['game']['flag_format'], text)
+    matches = re.findall(handler.game['flag_format'], text)
     return matches if matches else None
-
-
-def load_config():
-    global config, client
-
-    # TODO: Disallow reloading connection config and make it immutable after running client.
-    with open('fast.yaml', 'r') as file:
-        data = yaml.safe_load(file)
-
-    # TODO: Handle connection failure and provide a fallback way of
-    # keeping the flags if the server is down.
-    connect = data['connect']
-    client = SubmitClient(
-        host=connect['host'],
-        port=connect['port'],
-        player=connect['player']
-    )
-
-    config = {
-        'connect': connect,
-        'game': client.get_game_config()
-    }
 
 
 if __name__ == "__main__":
