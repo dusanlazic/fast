@@ -169,7 +169,7 @@ def load_config():
     logger.success('No errors found in exploits config.')
 
 
-def setup_handler():
+def setup_handler(skip_sync=False):
     global handler
 
     # Fetch, apply and persist server's game configuration
@@ -187,7 +187,8 @@ def setup_handler():
     logger.success(f'Game configured successfully. — {st.faint(config_repr)}')
 
     # Synchronize client with server's tick clock
-    handler.sync()
+    if not skip_sync:
+        handler.sync()
 
 
 def splash():

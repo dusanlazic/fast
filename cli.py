@@ -1,19 +1,20 @@
-import client
 import argparse
 import threading
 from util.log import logger
 from util.styler import TextStyler as st
-from client import load_exploits, load_config, run_exploit
+from client import load_exploits, load_config, setup_handler, run_exploit
+from submit_handler import SubmitClient
 
 
-def main():
+def fire():
     parser = argparse.ArgumentParser(
         description="Run exploits manually. Useful if you do not want to wait for the next tick.")
     parser.add_argument("names", metavar="Name", type=str, nargs="+",
                         help="Names of the exploits as in fast.yaml")
     args = parser.parse_args()
 
-    client.config = load_config()
+    load_config()
+    setup_handler(skip_sync=True)
     exploits = load_exploits()
 
     selected_exploits = [e for e in exploits if e.name in args.names]
@@ -29,3 +30,7 @@ def main():
     for exploit in selected_exploits:
         exploit.delay = 0  # Ignore delay and run instantly
         threading.Thread(target=run_exploit, args=(exploit,)).start()
+
+
+def submit():
+    SubmitClient().trigger_submit()
