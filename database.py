@@ -1,6 +1,12 @@
 from peewee import *
 
-db = SqliteDatabase('flags.db')
+db = PostgresqlDatabase(
+    'fast', 
+    user='admin',
+    password='admin',
+    host='localhost'
+)
+
 
 class BaseModel(Model):
     class Meta:

@@ -11,6 +11,7 @@ setup(
         'loguru',
         'pyyaml',
         'peewee',
+        'psycopg2-binary',
         'stopit',
         'flask',
         'flask_httpauth',
