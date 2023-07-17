@@ -12,7 +12,9 @@ setup(
         'pyyaml',
         'peewee',
         'stopit',
-        'bottle',
+        'flask',
+        'flask_httpauth',
+        'jsonschema'
         'APScheduler'
     ],
     packages=find_packages(),

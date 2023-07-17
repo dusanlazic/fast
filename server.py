@@ -1,10 +1,12 @@
 import os
 import sys
 import yaml
+import logging
 import functools
 from importlib import import_module
 from datetime import datetime, timedelta
-from bottle import Bottle, request, auth_basic
+from flask import Flask, request
+from flask_httpauth import HTTPBasicAuth
 from apscheduler.schedulers.background import BackgroundScheduler
 from models import Flag
 from database import db
@@ -13,7 +15,8 @@ from util.styler import TextStyler as st
 from util.helpers import seconds_from_now, truncate
 from util.validation import validate_data, validate_delay, server_yaml_schema
 
-app = Bottle()
+app = Flask(__name__)
+auth = HTTPBasicAuth()
 
 tick_number = 0
 tick_start = datetime.max
@@ -29,6 +32,7 @@ config = {
 def main():
     splash()
     setup_database()
+    configure_flask()
     load_config()
 
     game, submitter, server = config['game'], config['submitter'], config['server']
@@ -71,12 +75,12 @@ def main():
 
     app.run(
         host=server.get('host') or '0.0.0.0',
-        port=server.get('port') or 2023,
-        quiet=True
+        port=server.get('port') or 2023
     )
 
 
-def authenticate(user, password):
+@auth.verify_password
+def authenticate(username, password):
     return password == config['server']['password']
 
 
@@ -84,14 +88,13 @@ def basic(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         if config['server'].get('password'): 
-            protected_func = auth_basic(authenticate)(func)
-            return protected_func(*args, **kwargs)
+            return auth.login_required(func)(*args, **kwargs)
         else:
             return func(*args, **kwargs)
     return wrapper
 
 
-@app.route('/enqueue', method='POST')
+@app.route('/enqueue', methods=['POST'])
 @basic
 def enqueue():
     flags = request.json['flags']
@@ -118,7 +121,7 @@ def enqueue():
     })
 
 
-@app.route('/sync', method='GET')
+@app.route('/sync')
 @basic
 def sync():
     now: datetime = datetime.now()
@@ -134,13 +137,13 @@ def sync():
     })
 
 
-@app.route('/config', method='GET')
+@app.route('/config')
 @basic
 def get_config():
     return dict(config)
 
 
-@app.route('/stats', method='GET')
+@app.route('/stats')
 @basic
 def get_stats():
     return dict({
@@ -150,7 +153,7 @@ def get_stats():
     })
 
 
-@app.route('/trigger-submit', method='POST')
+@app.route('/trigger-submit', methods=['POST'])
 @basic
 def trigger_submit():
     logger.info(f"Submitter triggered manually by {st.bold(request.json['player'])}.")
@@ -236,6 +239,17 @@ def tick_clock():
                 f'Next tick scheduled for {st.bold(next_tick_start.strftime("%H:%M:%S"))}. ⏱️')
 
     tick_number += 1
+
+
+def configure_flask():
+    # Configure templates
+    app.template_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'web', 'views')
+
+    # Set static path
+    app.static_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'web', 'static')
+
+    # Disable logs
+    logging.getLogger('werkzeug').setLevel(logging.ERROR)
 
 
 def load_config():
