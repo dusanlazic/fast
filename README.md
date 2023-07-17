@@ -48,6 +48,7 @@ submitter:
 server:
   host: 0.0.0.0  # Accept connections from any network interface or IP address
   port: 2023  # Run Fast server on port 2023
+  password: letmein  # Optionally add a password for basic auth
 ```
 
 2. In the same directory, create a submitter script. If you did not specify `module` in `server.yaml`, name it `submitter.py`. Otherwise, name it to match your custom module name. To work properly with Fast, submitter should follow this [submitter script guideline](#submitter-script-guideline).
@@ -82,6 +83,7 @@ connect:
   host: 192.168.1.49  # IP address of the machine that is running Fast server
   port: 2023
   player: s4ndu  # Your username to identify your actions in logs
+  password: letmein  # If the server has a password, use it here
 
 exploits:
   # IP addresses can be listed individually, and IP ranges can be expressed using hyphens
@@ -226,6 +228,5 @@ Executing this command will run the specified exploits and tell the server to su
 - [ ] Verbose flag history (track OLD, DUP, etc.)
 - [x] Restrict malicious actors from accessing the server (basic auth).
 - [ ] Support HTTPS to prevent packet sniffing for flags
-- [ ] Readable server logs from player machines.
-- [ ] Stats, alerts, web dashboard, etc.
+- [ ] Web dashboard for monitoring.
 - [ ] Optional centralized client integrated with git repository.
