@@ -7,6 +7,7 @@ from importlib import import_module
 from datetime import datetime, timedelta
 from flask import Flask, request
 from flask_httpauth import HTTPBasicAuth
+from flask_socketio import SocketIO, emit
 from apscheduler.schedulers.background import BackgroundScheduler
 from models import Flag
 from database import db
@@ -17,6 +18,7 @@ from util.validation import validate_data, validate_delay, server_yaml_schema
 
 app = Flask(__name__)
 auth = HTTPBasicAuth()
+socketio = SocketIO(app)
 
 tick_number = 0
 tick_start = datetime.max
@@ -69,11 +71,12 @@ def main():
         next_run_time=seconds_from_now(first_run)
     )
 
-    # Run scheduler and Bottle server
+    # Run scheduler and Flask server
 
     scheduler.start()
 
-    app.run(
+    socketio.run(
+        app,
         host=server.get('host') or '0.0.0.0',
         port=server.get('port') or 2023
     )

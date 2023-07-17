@@ -15,6 +15,7 @@ setup(
         'stopit',
         'flask',
         'flask_httpauth',
+        'flask_socketio',
         'jsonschema'
         'APScheduler'
     ],
