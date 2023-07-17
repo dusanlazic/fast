@@ -8,6 +8,7 @@ setup(
     author_email="lazicdusan1104@gmail.com",
     url="https://github.com/dusanlazic/fast",
     install_requires=[
+        'requests',
         'loguru',
         'pyyaml',
         'peewee',
@@ -16,7 +17,7 @@ setup(
         'flask',
         'flask_httpauth',
         'flask_socketio',
-        'jsonschema'
+        'jsonschema',
         'APScheduler'
     ],
     packages=find_packages(),

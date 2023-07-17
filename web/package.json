@@ -1,0 +1,9 @@
+{
+    "scripts": {
+        "watch": "sass --watch _sass/main.scss:static/css/main.css",
+        "build": "sass _sass/main.scss:static/css/main.css"
+    },
+    "dependencies": {
+        "bulma": "^0.9.4"
+    }
+}

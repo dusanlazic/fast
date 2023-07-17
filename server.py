@@ -5,7 +5,7 @@ import logging
 import functools
 from importlib import import_module
 from datetime import datetime, timedelta
-from flask import Flask, request
+from flask import Flask, request, render_template
 from flask_httpauth import HTTPBasicAuth
 from flask_socketio import SocketIO, emit
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -97,6 +97,12 @@ def basic(func):
     return wrapper
 
 
+@app.route('/')
+@basic
+def dashboard():
+    return render_template('dashboard.html')
+
+
 @app.route('/enqueue', methods=['POST'])
 @basic
 def enqueue():
@@ -128,15 +134,27 @@ def enqueue():
 @basic
 def sync():
     now: datetime = datetime.now()
-    next_tick_start: datetime = tick_start + \
-        timedelta(seconds=config['game']['tick_duration'])
+    
+    duration = config['game']['tick_duration']
+    submit_delay = config['submitter']['delay']
+
+    elapsed = (now - tick_start).total_seconds()
+    remaining = duration - elapsed
+
+    next_submit: datetime = tick_start + timedelta(seconds=submit_delay + (duration if elapsed > submit_delay else 0))
+    next_submit_remaining = (next_submit - now).total_seconds()
 
     return dict({
-        'number': tick_number,
-        'this_timestamp': tick_start.timestamp(),
-        'next_timestamp': next_tick_start.timestamp(),
-        'this_delta': (now - tick_start).total_seconds(),
-        'next_delta': (next_tick_start - now).total_seconds()
+        'submitter': {
+            'remaining': next_submit_remaining,
+            'delay': submit_delay
+        },
+        'tick': {
+            'current': tick_number,
+            'duration': duration,
+            'elapsed': elapsed,
+            'remaining': remaining,
+        }
     })
 
 

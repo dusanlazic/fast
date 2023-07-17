@@ -1,0 +1,24 @@
+@charset "utf-8";
+
+$primary: #EF233C;
+$link: $primary;
+
+$family-primary: 'Fira Code', monospace;
+$body-background-color:  hsl(0, 0%, 96%);
+
+$progress-border-radius: 0px;
+
+.card {
+    box-shadow: none !important;
+    border: 1px solid #dbdbdb;
+    border-radius: 0px !important;
+}
+
+.card:hover {
+    background-color: #dbdbdb;
+}
+
+/*        fonts        */
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;500&display=swap');
+
+@import "../node_modules/bulma/bulma";

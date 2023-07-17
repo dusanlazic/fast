@@ -59,9 +59,9 @@ class SubmitClient(object):
         response = requests.get(f'{self.url}/sync')
         sync_data = response.json()
 
-        wait_until = datetime.now() + timedelta(seconds=sync_data['next_delta'])
+        wait_until = datetime.now() + timedelta(seconds=sync_data['tick']['remaining'])
         logger.info(f'Synchronizing with the server... Tick will start at {st.bold(wait_until.strftime("%H:%M:%S"))}.')
-        time.sleep(sync_data['next_delta'])
+        time.sleep(sync_data['tick']['remaining'])
 
     def enqueue(self, flags, exploit_name, target_ip):
         payload = json.dumps({
