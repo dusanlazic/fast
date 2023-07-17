@@ -19,7 +19,7 @@
         Fast Server Dashboard
       </h1>
       <p class="subtitle is-size-4 mt-4">
-        This tick
+        Current tick
         <span class="iconify-inline is-size-5" data-icon="ri:timer-line"></span>
         <span class="subtitle has-text-grey-light is-pulled-right">
           <span class="iconify-inline is-size-5" data-icon="ri:timer-line"></span>
@@ -34,7 +34,7 @@
                 <span class="iconify-inline is-size-5" data-icon="ri:flag-fill"></span>
                 Flags received
               </p>
-              <p class="title">
+              <p class="title" id="received">
                 <span class="has-text-grey-light">...</span>
               </p>
             </div>
@@ -47,7 +47,7 @@
                 <span class="iconify-inline is-size-5" data-icon="ri:delete-bin-6-fill"></span>
                 Duplicates
               </p>
-              <p class="title">
+              <p class="title" id="duplicates">
                 <span class="has-text-grey-light">...</span>
               </p>
             </div>
@@ -60,7 +60,7 @@
                 <span class="iconify-inline is-size-5" data-icon="ri:database-2-fill"></span>
                 Added to queue
               </p>
-              <p class="title">
+              <p class="title" id="queued">
                 <span class="has-text-grey-light">...</span>
               </p>
             </div>
@@ -73,7 +73,7 @@
                 <span class="iconify-inline is-size-5" data-icon="ri:sword-fill"></span>
                 Exploits
               </p>
-              <p class="title">
+              <p class="title" id="exploits">
                 <span class="has-text-grey-light">...</span>
               </p>
             </div>
@@ -95,9 +95,9 @@
             <div class="card-content">
               <p class="subtitle">
                 <span class="iconify-inline is-size-5" data-icon="ri:check-line"></span>
-                Queued
+                In queue
               </p>
-              <p class="title">
+              <p class="title" id="in-queue">
                 <span class="has-text-grey-light">...</span>
               </p>
             </div>
@@ -108,9 +108,9 @@
             <div class="card-content">
               <p class="subtitle">
                 <span class="iconify-inline is-size-5" data-icon="ri:check-double-line"></span>
-                Accepted <span class="has-text-grey-light">+0</span>
+                Accepted <span class="has-text-success" id="accepted-delta">+0</span>
               </p>
-              <p class="title">
+              <p class="title" id="accepted">
                 <span class="has-text-grey-light">...</span>
               </p>
             </div>
@@ -121,9 +121,9 @@
             <div class="card-content">
               <p class="subtitle">
                 <span class="iconify-inline is-size-5" data-icon="ri:close-line"></span>
-                Rejected <span class="has-text-grey-light">+0</span>
+                Rejected <span class="has-text-grey-light" id="rejected-delta">+0</span>
               </p>
-              <p class="title">
+              <p class="title" id="rejected">
                 <span class="has-text-grey-light">...</span>
               </p>
             </div>

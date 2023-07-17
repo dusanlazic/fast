@@ -123,6 +123,14 @@ def enqueue():
                            (f"{st.bold(1)} flag " if len(new_flags) == 1 else f"{st.bold(len(new_flags))} flags ") + 
                            f"from {st.bold(target_ip)} using {st.bold(exploit_name)}. 🚩  — {st.faint(truncate(' '.join(new_flags), 50))}")
 
+    socketio.emit('enqueue_event', {
+        'new': len(new_flags),
+        'dup': len(duplicate_flags),
+        'player': player,
+        'target': target_ip,
+        'exploit': exploit_name
+    })
+
     return dict({
         'duplicates': duplicate_flags,
         'new':  new_flags,
@@ -192,9 +200,18 @@ def submitter_wrapper(submit):
 
     if not flags:
         logger.info(f"No flags in the queue! Submission skipped.")
+
+        socketio.emit('submit_skip_event', {
+            'message': 'No flags in the queue! Submission skipped.'
+        })
+
         return
 
     logger.info(st.bold(f"Submitting {len(flags)} flags..."))
+
+    socketio.emit('submit_start_event', {
+        'message': f'Submitting {len(flags)} flags...'
+    })
 
     # TODO: Track more statues (duplicate flag, old flag, etc.)
     accepted, rejected = submit(flags)
@@ -228,6 +245,15 @@ def submitter_wrapper(submit):
         queued_count = Flag.select().where(Flag.status == 'queued').count()
         accepted_count = Flag.select().where(Flag.status == 'accepted').count()
         rejected_count = Flag.select().where(Flag.status == 'rejected').count()
+
+    socketio.emit('submit_complete_event', {
+        'message': 'Submitting completed.',
+        'data': {
+            'queued': queued_count,
+            'accepted': accepted_count,
+            'rejected': rejected_count
+        }
+    })
 
     queued_count_st = st.color(
         st.bold(queued_count), 'green') if queued_count == 0 else st.bold(queued_count)
