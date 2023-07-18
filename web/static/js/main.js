@@ -40,6 +40,7 @@ const updateCountdown = () => {
   if (tickRemaining < 0) {
     tickRemaining += tickDuration;
     tickNumber += 1;
+    addNotification(`Started tick ${tickNumber}.`);
   }
 
   if (tickRemaining > 0 && tickRemaining <= 1) {
@@ -92,11 +93,11 @@ socket.on('enqueue_event', function (msg) {
 });
 
 socket.on('submit_start_event', function (msg) {
-  console.log(msg);
+  addNotification(msg.message);
 });
 
 socket.on('submit_skip_event', function (msg) {
-  console.log(msg);
+  addNotification(msg.message);
 });
 
 socket.on('submit_complete_event', function (msg) {
@@ -116,9 +117,46 @@ socket.on('submit_complete_event', function (msg) {
   rejectedElement.textContent = rejected;
   acceptedDeltaElement.textContent = signPrefix(acceptedDelta);
   rejectedDeltaElement.textContent = signPrefix(rejectedDelta);
+
+  addNotification(`${acceptedDelta} flags accepted, ${rejectedDelta} flags rejected, ${inQueue} in queue.`)
 })
 
 
 function signPrefix(num) {
   return (num >= 0 ? '+' : '-') + num;
+}
+
+
+// Notifications
+
+let notificationQueue = [];
+
+const notificationsElement = document.getElementById('notifications');
+
+function addNotification(notification) {
+  notificationQueue.unshift(notification);
+
+  if (notificationQueue.length > 10) {
+    notificationQueue.pop();
+  }
+
+  let newNotif = document.createElement('p');
+  newNotif.style.transition = 'opacity 1s';
+  notificationsElement.prepend(newNotif);
+  typingEntrance(newNotif, notification)
+
+  setTimeout(() => newNotif.style.opacity = 0, 4000);
+}
+
+function typingEntrance(dest, text) {
+  let i = 0;
+  let animated = '';
+  let interval = setInterval(function() {
+    if (i < text.length) {
+      animated += text.charAt(i++);
+      dest.innerText = animated;
+    } else {
+      clearInterval(interval);
+    }
+  }, 20);
 }
