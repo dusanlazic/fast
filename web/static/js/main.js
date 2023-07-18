@@ -103,14 +103,11 @@ socket.on('submit_skip_event', function (msg) {
 socket.on('submit_complete_event', function (msg) {
   data = msg.data;
 
-  oldAccepted = accepted;
-  oldRejected = rejected;
-
   inQueue = data.queued;
   accepted = data.accepted;
   rejected = data.rejected;
-  acceptedDelta = accepted - oldAccepted;
-  rejectedDelta = rejected - oldRejected;
+  acceptedDelta = data.acceptedDelta;
+  rejectedDelta = data.rejectedDelta;
 
   inQueueElement.textContent = inQueue;
   acceptedElement.textContent = accepted;
@@ -118,12 +115,12 @@ socket.on('submit_complete_event', function (msg) {
   acceptedDeltaElement.textContent = signPrefix(acceptedDelta);
   rejectedDeltaElement.textContent = signPrefix(rejectedDelta);
 
-  addNotification(`${acceptedDelta} flags accepted, ${rejectedDelta} flags rejected, ${inQueue} in queue.`)
+  addNotification(msg.message);
 })
 
 
 function signPrefix(num) {
-  return (num >= 0 ? '+' : '-') + num;
+  return (num >= 0 ? '+' : '') + num;
 }
 
 

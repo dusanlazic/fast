@@ -247,11 +247,13 @@ def submitter_wrapper(submit):
         rejected_count = Flag.select().where(Flag.status == 'rejected').count()
 
     socketio.emit('submit_complete_event', {
-        'message': 'Submitting completed.',
+        'message': f'{len(accepted)} flag{"s" if len(accepted) > 1 else ""} accepted, {len(rejected)} rejected.',
         'data': {
             'queued': queued_count,
             'accepted': accepted_count,
-            'rejected': rejected_count
+            'rejected': rejected_count,
+            'acceptedDelta': len(accepted),
+            'rejectedDelta': len(rejected)
         }
     })
 
