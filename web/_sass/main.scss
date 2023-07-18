@@ -2,11 +2,12 @@
 
 $primary: #EF233C;
 $link: $primary;
-$radius: 0px;
 
 $family-primary: 'Fira Code', monospace;
 $body-background-color:  hsl(0, 0%, 96%);
 
+$radius: 0px;
+$progress-border-radius: 0px;
 
 .card {
     box-shadow: none !important;
@@ -21,4 +22,12 @@ $body-background-color:  hsl(0, 0%, 96%);
 /*        fonts        */
 @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;500&display=swap');
 
-@import "../node_modules/bulma/bulma";
+@import "../node_modules/bulma/sass/base/_all.sass";
+@import "../node_modules/bulma/sass/components/card.sass";
+@import "../node_modules/bulma/sass/elements/container.sass";
+@import "../node_modules/bulma/sass/elements/progress.sass";
+@import "../node_modules/bulma/sass/elements/title.sass";
+@import "../node_modules/bulma/sass/grid/_all.sass";
+@import "../node_modules/bulma/sass/helpers/_all.sass";
+@import "../node_modules/bulma/sass/layout/_all.sass";
+@import "../node_modules/bulma/sass/utilities/_all.sass";

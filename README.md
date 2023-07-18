@@ -4,6 +4,10 @@ Fast is a Python tool designed to easily manage your exploits and automate submi
 
 > Keep in mind that this tool is in early stages of development and at this moment it is still an experimental tool. Fast is yet to be improved and more battle tested. :)
 
+
+![Dashboard for monitoring real-time data](/docs/dashboard.png)
+
+
 ## Installation
 
 > Remember to create a Python virtual environment before installing:
@@ -220,13 +224,14 @@ Executing this command will run the specified exploits and tell the server to su
 
 ## Planned features and goals
 
-- [x] Validate configs when starting.
-- [x] Make some client configuration (e.g. `connect`) immutable after starting.
+- [ ] Web dashboard for monitoring. (WIP)
+- [ ] Easy exploit health monitoring on dashboard.
 - [ ] Handle connection failure with the server and provide a fallback for keeping the flags locally.
 - [ ] Guarantee that every non-duplicate retrieved flag will be submitted.
-- [x] Synchronizing clients with the server.
 - [ ] Verbose flag history (track OLD, DUP, etc.)
-- [x] Restrict malicious actors from accessing the server (basic auth).
 - [ ] Support HTTPS to prevent packet sniffing for flags
-- [ ] Web dashboard for monitoring.
 - [ ] Optional centralized client integrated with git repository.
+- [x] Validate configs when starting.
+- [x] Make some client configuration (e.g. `connect`) immutable after starting.
+- [x] Synchronizing clients with the server.
+- [x] Restrict malicious actors from accessing the server (basic auth).
