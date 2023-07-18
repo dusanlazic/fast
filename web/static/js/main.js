@@ -37,20 +37,16 @@ const updateCountdown = () => {
   tickRemaining -= 1;
   submitterRemaining -= 1;
 
+  if (tickRemaining > 0 && tickRemaining <= 1) {
+    // Reset values before tick starts
+    received = duplicates = queued = 0;
+    exploits.clear()
+  }
+
   if (tickRemaining < 0) {
     tickRemaining += tickDuration;
     tickNumber += 1;
     addNotification(`Started tick ${tickNumber}.`);
-  }
-
-  if (tickRemaining > 0 && tickRemaining <= 1) {
-    received = duplicates = queued = 0;
-    exploits.clear()
-
-    receivedElement.textContent = received;
-    duplicatesElement.textContent = duplicates;
-    queuedElement.textContent = queued;
-    exploitsElement.textContent = exploits.size;
   }
 
   if (submitterRemaining < 0) {
@@ -139,6 +135,7 @@ function addNotification(notification) {
   typingEntrance(newNotif, notification)
 
   setTimeout(() => newNotif.style.opacity = 0, 4000);
+  setTimeout(() => newNotif.remove(), 5000);
 }
 
 function typingEntrance(dest, text) {
