@@ -187,5 +187,5 @@ server_yaml_schema = {
         "submitter": submitter_schema,
         "server": server_schema,
     },
-    "required": ["game", "submitter", "server"],
+    "required": ["game", "submitter"],
 }

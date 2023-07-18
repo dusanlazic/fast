@@ -13,7 +13,7 @@ from models import Flag
 from database import db
 from util.log import logger
 from util.styler import TextStyler as st
-from util.helpers import seconds_from_now, truncate
+from util.helpers import seconds_from_now, truncate, deep_update
 from util.validation import validate_data, validate_delay, server_yaml_schema
 
 app = Flask(__name__)
@@ -25,9 +25,15 @@ tick_start = datetime.max
 submit_func = None
 
 config = {
-    'game': None,
-    'submitter': None,
-    'server': None
+    'game': {},
+    'submitter': {
+        'module': 'submitter',
+        'run_every_nth_tick': 1
+    },
+    'server': {
+        'host': '0.0.0.0',
+        'port': 2023
+    }
 }
 
 
@@ -53,13 +59,13 @@ def main():
     # Schedule flag submitting
 
     delay = submitter['delay']
-    run_every_nth = submitter.get('run_every_nth_tick') or 1
+    run_every_nth = submitter['run_every_nth_tick']
     interval = run_every_nth * game['tick_duration']
     first_run = (run_every_nth - 1) * game['tick_duration'] + delay
 
     global submit_func
     sys.path.append(os.getcwd())
-    module = import_module(submitter.get('module') or 'submitter')
+    module = import_module(submitter['module'])
     submit_func = getattr(module, 'submit')
 
     scheduler.add_job(
@@ -77,8 +83,8 @@ def main():
 
     socketio.run(
         app,
-        host=server.get('host') or '0.0.0.0',
-        port=server.get('port') or 2023
+        host=server['host'],
+        port=server['port']
     )
 
 
@@ -308,7 +314,7 @@ def load_config():
         logger.error(f"Fix errors in {st.bold('server.yaml')} and rerun.")
         exit(1)
 
-    config.update(yaml_data)
+    deep_update(config, yaml_data)
 
     # Wrap single team ip in a list
     if type(config['game']['team_ip']) != list:
