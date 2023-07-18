@@ -22,7 +22,7 @@ class SubmitClient(object):
 
     def _client_configure(self):
         self._update_url()
-        response = requests.get(f'{self.url}/config')
+        response = requests.get(f'{self.url}/config', params={'player': self.connect['player']})
         server_config = response.json()
         self.game = server_config['game']
 
@@ -73,10 +73,23 @@ class SubmitClient(object):
         response = requests.post(
             f'{self.url}/enqueue', data=payload, headers=headers)
         return response.json()
-  
-    def get_stats(self):
-        response = requests.get(f'{self.url}/stats')
-        return response.json()
+
+    def notifyExploitStart(self, exploit_name, targets):
+        payload = json.dumps({
+            'exploit_name': exploit_name,
+            'targets': targets,
+            'player': self.connect['player']
+        })
+
+        requests.post(f'{self.url}/notify/exploit-start', data=payload, headers=headers)
+
+    def notifyExploitEnd(self, exploit_name):
+        payload = json.dumps({
+            'exploit_name': exploit_name,
+            'player': self.connect['player']
+        })
+
+        requests.post(f'{self.url}/notify/exploit-end', data=payload, headers=headers)
 
     def trigger_submit(self):
         payload = json.dumps({

@@ -92,11 +92,7 @@ socket.on('enqueue_event', function (msg) {
   exploitsElement.textContent = exploits.size;
 });
 
-socket.on('submit_start_event', function (msg) {
-  addNotification(msg.message);
-});
-
-socket.on('submit_skip_event', function (msg) {
+socket.on('log_event', function (msg) {
   addNotification(msg.message);
 });
 

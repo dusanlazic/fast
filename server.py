@@ -169,17 +169,14 @@ def sync():
 @app.route('/config')
 @basic
 def get_config():
-    return dict(config)
+    player = request.args['player']
+    address = request.remote_addr
 
-
-@app.route('/stats')
-@basic
-def get_stats():
-    return dict({
-        'queued': Flag.select().where(Flag.status == 'queued').count(),
-        'accepted': Flag.select().where(Flag.status == 'accepted').count(),
-        'rejected': Flag.select().where(Flag.status == 'rejected').count()
+    socketio.emit('log_event', {
+        'message': f'{player} has connected from {address}.'
     })
+
+    return dict(config)
 
 
 @app.route('/trigger-submit', methods=['POST'])
@@ -201,7 +198,7 @@ def submitter_wrapper(submit):
     if not flags:
         logger.info(f"No flags in the queue! Submission skipped.")
 
-        socketio.emit('submit_skip_event', {
+        socketio.emit('log_event', {
             'message': 'No flags in the queue! Submission skipped.'
         })
 
@@ -209,7 +206,7 @@ def submitter_wrapper(submit):
 
     logger.info(st.bold(f"Submitting {len(flags)} flags..."))
 
-    socketio.emit('submit_start_event', {
+    socketio.emit('log_event', {
         'message': f'Submitting {len(flags)} flags...'
     })
 
