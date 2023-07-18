@@ -6,8 +6,7 @@ import threading
 import subprocess
 from itertools import product
 from models import ExploitDetails
-from submit_handler import SubmitClient
-from datetime import datetime, timedelta
+from handler import SubmitClient
 from util.styler import TextStyler as st
 from util.helpers import seconds_from_now
 from util.log import logger, create_log_dir
@@ -169,7 +168,7 @@ def load_config():
     logger.success('No errors found in exploits config.')
 
 
-def setup_handler(skip_sync=False):
+def setup_handler(fire_mode=False):
     global handler
 
     # Fetch, apply and persist server's game configuration
@@ -187,7 +186,7 @@ def setup_handler(skip_sync=False):
     logger.success(f'Game configured successfully. — {st.faint(config_repr)}')
 
     # Synchronize client with server's tick clock
-    if not skip_sync:
+    if not fire_mode:
         handler.sync()
 
 

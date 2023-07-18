@@ -3,7 +3,7 @@ import threading
 from util.log import logger
 from util.styler import TextStyler as st
 from client import load_exploits, load_config, setup_handler, run_exploit
-from submit_handler import SubmitClient
+from handler import SubmitClient
 
 
 def fire():
@@ -14,7 +14,7 @@ def fire():
     args = parser.parse_args()
 
     load_config()
-    setup_handler(skip_sync=True)
+    setup_handler(fire_mode=True)
     exploits = load_exploits()
 
     selected_exploits = [e for e in exploits if e.name in args.names]

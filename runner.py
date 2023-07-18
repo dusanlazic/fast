@@ -9,7 +9,7 @@ import threading
 import subprocess
 from util.helpers import truncate
 from importlib import import_module
-from submit_handler import SubmitClient
+from handler import SubmitClient
 from util.styler import TextStyler as st
 from util.log import logger, log_error, log_warning
 

@@ -107,8 +107,8 @@ def dashboard():
 @basic
 def enqueue():
     flags = request.json['flags']
-    exploit_name = request.json['exploit_name']
-    target_ip = request.json['target_ip']
+    exploit = request.json['exploit']
+    target = request.json['target']
     player = request.json['player']
 
     with db.atomic():
@@ -117,18 +117,18 @@ def enqueue():
         new_flags = [flag for flag in flags if flag not in duplicate_flags]
 
         if new_flags:
-            Flag.bulk_create([Flag(value=flag, exploit_name=exploit_name, target_ip=target_ip,
+            Flag.bulk_create([Flag(value=flag, exploit=exploit, target=target,
                                    status='queued') for flag in new_flags])
             logger.success(f"{st.bold(player)} retrieved " +
                            (f"{st.bold(1)} flag " if len(new_flags) == 1 else f"{st.bold(len(new_flags))} flags ") + 
-                           f"from {st.bold(target_ip)} using {st.bold(exploit_name)}. 🚩  — {st.faint(truncate(' '.join(new_flags), 50))}")
+                           f"from {st.bold(target)} using {st.bold(exploit)}. 🚩  — {st.faint(truncate(' '.join(new_flags), 50))}")
 
     socketio.emit('enqueue_event', {
         'new': len(new_flags),
         'dup': len(duplicate_flags),
         'player': player,
-        'target': target_ip,
-        'exploit': exploit_name
+        'target': target,
+        'exploit': exploit
     })
 
     return dict({

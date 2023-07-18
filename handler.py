@@ -63,33 +63,16 @@ class SubmitClient(object):
         logger.info(f'Synchronizing with the server... Tick will start at {st.bold(wait_until.strftime("%H:%M:%S"))}.')
         time.sleep(sync_data['tick']['remaining'])
 
-    def enqueue(self, flags, exploit_name, target_ip):
+    def enqueue(self, flags, exploit, target):
         payload = json.dumps({
             'flags': flags,
-            'exploit_name': exploit_name,
-            'target_ip': target_ip,
+            'exploit': exploit,
+            'target': target,
             'player': self.connect['player']
         })
         response = requests.post(
             f'{self.url}/enqueue', data=payload, headers=headers)
         return response.json()
-
-    def notifyExploitStart(self, exploit_name, targets):
-        payload = json.dumps({
-            'exploit_name': exploit_name,
-            'targets': targets,
-            'player': self.connect['player']
-        })
-
-        requests.post(f'{self.url}/notify/exploit-start', data=payload, headers=headers)
-
-    def notifyExploitEnd(self, exploit_name):
-        payload = json.dumps({
-            'exploit_name': exploit_name,
-            'player': self.connect['player']
-        })
-
-        requests.post(f'{self.url}/notify/exploit-end', data=payload, headers=headers)
 
     def trigger_submit(self):
         payload = json.dumps({

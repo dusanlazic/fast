@@ -21,7 +21,7 @@ setup(
         'APScheduler'
     ],
     packages=find_packages(),
-    py_modules=['client', 'server', 'runner', 'database', 'models', 'submit_handler', 'cli'],
+    py_modules=['cli', 'client', 'database', 'handler', 'models', 'runner', 'server'],
     entry_points= {
         'console_scripts': [
             'fast = client:main',
