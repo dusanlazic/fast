@@ -142,7 +142,7 @@ Your exploits will now be executed during each tick. At the beginning of a tick,
 
 #### Python scripts 🐍
 
-To work properly with Fast, your script should have a function named `exploit` that takes the target's IP address as the only parameter, and returns the flag (or some text containing the flag) as a string. That's about it.
+To work properly with Fast, your script should have a function named `exploit` that takes the target's IP address as the only parameter, and returns flags (or some text containing one or multiple flags) as a string. That's about it.
 
 Here is a very basic example of how an exploit script should be structured:
 
@@ -155,7 +155,7 @@ def exploit(target):
 
 #### Other scripts 🦀💲☕
 
-For non-Python scripts, just provide a way to pass the target's IP address as a command line argument, and make sure to output nothing but the flag (or some text containing the flag) on `stdout`.
+For non-Python scripts, just provide a way to pass the target's IP address as a command line argument, and make sure to output only the text containing a flag (or multiple flags) on `stdout`.
 
 Something like this:
 ```bash
@@ -173,11 +173,7 @@ When adding the exploit to `fast.yaml`, provide the command for running it and i
 
 ### Submitter Script Guideline
 
-Your submitter script should also follow certain guidelines:
-
-1. Submitter script should have a function named `submit`.
-2. The `submit` function should take one parameter, `flags`, which is a list of flags (string values) for submission.
-3. The `submit` function should return two lists, the first one should be a list of accepted flags, and the second one a list of rejected flags.
+Your submitter script should have a function named `submit` that takes a single parameter, which is a list of flags (string values) for submission. The `submit` function should return two dictionaries, where the **keys** are **flag values**, and the **values** are **flag service responses**. The first dictionary should contain accepted flags, and the second one rejected flags.
 
 Here is an example of how a submitter script may look like:
 
@@ -190,6 +186,8 @@ headers = {
     'X-Team-ID': '5c1be7f38b586cd4'
 }
 
+ACCEPT_RESPONSE = "OK"
+
 def submit(flags):
     payload = json.dumps(flags)
 
@@ -197,8 +195,8 @@ def submit(flags):
 
     flag_statuses = json.loads(response)
 
-    accepted_flags = [item["flag"] for item in flag_statuses if item["status"] == "Flag accepted!"]
-    rejected_flags = [item["flag"] for item in flag_statuses if item["status"] != "Flag accepted!"]
+    accepted_flags = { item["flag"]: item["status"] for item in flag_statuses if ACCEPT_RESPONSE in item["status"] }
+    rejected_flags = { item["flag"]: item["status"] for item in flag_statuses if ACCEPT_RESPONSE not in item["status"] }
 
     return accepted_flags, rejected_flags
 ```
@@ -207,7 +205,7 @@ def submit(flags):
 
 ### fire
 
-When you add a new exploit to the `fast.yml` file, it will be loaded and executed during the next tick. However, if you do not want to wait and prefer to get the flags right away, you can run the exploits immediately by running `fire <exploit names>`.
+When you add a new exploit to the `fast.yaml` file, it will be loaded and executed during the next tick. However, if you do not want to wait and prefer to get the flags right away, you can run the exploits immediately by running `fire <exploit names>`.
 
 ### submit
 
@@ -228,9 +226,9 @@ Executing this command will run the specified exploits and tell the server to su
 - [ ] Easy exploit health monitoring on dashboard.
 - [ ] Handle connection failure with the server and provide a fallback for keeping the flags locally.
 - [ ] Guarantee that every non-duplicate retrieved flag will be submitted.
-- [ ] Verbose flag history (track OLD, DUP, etc.)
 - [ ] Support HTTPS to prevent packet sniffing for flags
 - [ ] Optional centralized client integrated with git repository.
+- [x] Verbose flag history (track OLD, DUP, etc.)
 - [x] Validate configs when starting.
 - [x] Make some client configuration (e.g. `connect`) immutable after starting.
 - [x] Synchronizing clients with the server.

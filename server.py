@@ -123,11 +123,13 @@ def enqueue():
         new_flags = [flag for flag in flags if flag not in duplicate_flags]
 
         if new_flags:
-            Flag.bulk_create([Flag(value=flag, exploit=exploit, target=target,
-                                   status='queued') for flag in new_flags])
-            logger.success(f"{st.bold(player)} retrieved " +
-                           (f"{st.bold(1)} flag " if len(new_flags) == 1 else f"{st.bold(len(new_flags))} flags ") + 
-                           f"from {st.bold(target)} using {st.bold(exploit)}. 🚩  — {st.faint(truncate(' '.join(new_flags), 50))}")
+            Flag.bulk_create([Flag(value=flag, exploit=exploit, target=target, tick=tick_number,
+                                   player=player, status='queued') for flag in new_flags])
+    
+    if new_flags:
+        logger.success(f"{st.bold(player)} retrieved " +
+                    (f"{st.bold(1)} flag " if len(new_flags) == 1 else f"{st.bold(len(new_flags))} flags ") + 
+                    f"from {st.bold(target)} using {st.bold(exploit)}. 🚩  — {st.faint(truncate(' '.join(new_flags), 50))}")
 
     socketio.emit('enqueue_event', {
         'new': len(new_flags),
@@ -139,8 +141,7 @@ def enqueue():
 
     return dict({
         'duplicates': duplicate_flags,
-        'new':  new_flags,
-        'flags_in_queue': Flag.select().where(Flag.status == 'queued').count()
+        'new':  new_flags
     })
 
 
@@ -216,7 +217,6 @@ def submitter_wrapper(submit):
         'message': f'Submitting {len(flags)} flags...'
     })
 
-    # TODO: Track more statues (duplicate flag, old flag, etc.)
     accepted, rejected = submit(flags)
 
     if accepted:
@@ -234,16 +234,18 @@ def submitter_wrapper(submit):
 
     with db.atomic():
         if accepted:
-            to_accept = Flag.select().where(Flag.value.in_(accepted))
+            to_accept = Flag.select().where(Flag.value.in_([flag for flag in accepted]))
             for flag in to_accept:
                 flag.status = 'accepted'
-            Flag.bulk_update(to_accept, fields=[Flag.status])
+                flag.response = accepted[flag.value]
+            Flag.bulk_update(to_accept, fields=[Flag.status, Flag.response])
 
         if rejected:
-            to_decline = Flag.select().where(Flag.value.in_(rejected))
-            for flag in to_decline:
+            to_reject = Flag.select().where(Flag.value.in_([flag for flag in rejected]))
+            for flag in to_reject:
                 flag.status = 'rejected'
-            Flag.bulk_update(to_decline, fields=[Flag.status])
+                flag.response = rejected[flag.value]
+            Flag.bulk_update(to_reject, fields=[Flag.status, Flag.response])
 
         queued_count = Flag.select().where(Flag.status == 'queued').count()
         accepted_count = Flag.select().where(Flag.status == 'accepted').count()

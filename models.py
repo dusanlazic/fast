@@ -5,10 +5,12 @@ from database import BaseModel
 class Flag(BaseModel):
     value = CharField()
     exploit = CharField()
+    player = CharField()
+    tick = IntegerField()
     target = CharField()
     timestamp = DateTimeField(default=datetime.now)
     status = CharField(constraints=[Check("status IN ('queued', 'accepted', 'rejected')")])
-    comment = CharField(null=True)
+    response = CharField(null=True)
 
 
 class ExploitDetails:
