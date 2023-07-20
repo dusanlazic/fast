@@ -39,13 +39,19 @@ const updateCountdown = () => {
   if (tickRemaining > 0 && tickRemaining <= 1) {
     // Reset values before tick starts
     received = duplicates = queued = 0;
-    exploits = {};
+    exploitKeys = Object.keys(exploits); 
+    exploits = {}; // TODO: Instead of clearing exploits, update it
   }
 
   if (tickRemaining < 0) {
     tickRemaining += tickDuration;
     tickNumber += 1;
     addNotification(`Started tick ${tickNumber}.`);
+
+    for (const key of exploitKeys) {
+      let iconElement = document.getElementById(`exploit-${key}-icon`);
+      iconElement.setAttribute('data-icon', 'svg-spinners:ring-resize');
+    }
   }
 
   if (submitterRemaining < 0) {
@@ -60,6 +66,7 @@ fetchSyncData();
 const socket = io.connect('http://' + document.domain + ':' + location.port);
 
 let exploits = {};
+let exploitKeys = []; // temporary helper variable, TODO: Get rid of
 let received = duplicates = queued = inQueue = accepted = rejected = 0;
 
 const receivedElement = document.getElementById('received');
@@ -107,6 +114,7 @@ socket.on('enqueue_event', function (msg) {
     document.getElementById(`exploit-${key}-received`).textContent = exploits[key].received;
     document.getElementById(`exploit-${key}-duplicates`).textContent = exploits[key].duplicates;
     document.getElementById(`exploit-${key}-targets`).textContent = exploits[key].targets.size;
+    document.getElementById(`exploit-${key}-icon`).setAttribute('data-icon', 'ri:checkbox-circle-fill');
   }
 });
 
@@ -152,6 +160,7 @@ socket.on('report_event', function (msg) {
         <div class="card-content pl-0 pr-0 pt-4 pb-4">
           <p class="is-size-6 ml-4">
             <span class="has-text-grey">${report.player}/</span><span>${report.exploit}</span>
+            <span class="iconify-inline" id="exploit-${key}-icon" data-icon="ri:checkbox-circle-fill">
           </p>
           <div style="height: 70px;">
             <canvas id="canvas-${key}"></canvas>
