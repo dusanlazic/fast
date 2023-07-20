@@ -19,6 +19,12 @@ $progress-border-radius: 0px;
     background-color: #eeeeee;
 }
 
+#notifications {
+    height: 0px;
+    margin-top: 7px;
+    padding-left: 6rem;
+}
+
 /*        fonts        */
 @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;500&display=swap');
 

@@ -9,15 +9,21 @@
   <link rel="stylesheet" href="static/css/main.css">
   <script src="https://code.iconify.design/2/2.0.0/iconify.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.1/socket.io.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js"></script>
 </head>
 
 <body>
   <progress id="tick-clock" class="progress is-primary is-small" value="0" max="1"></progress>
   <div class="hero-body">
     <div class="container is-fullhd">
-      <h1 class="title">
-        Fast Server Dashboard
-      </h1>
+      <div class="is-flex">
+        <h1 class="title mb-0">
+          Fast Server Dashboard
+        </h1>
+        <div class="has-text-grey" id="notifications">
+
+        </div>
+      </div>
       <p class="subtitle is-size-4 mt-4">
         Current tick
         <span class="iconify-inline is-size-4" data-icon="ri:timer-line"></span>
@@ -131,12 +137,13 @@
         </div>
       </div>
 
-      <div class="columns mt-6">
-        <div class="column is-half">
-          <div id="notifications">
-            
-          </div>
-        </div>
+      <p class="subtitle is-size-4 mt-4">
+        Exploits
+        <span class="iconify-inline is-size-4" data-icon="ri:sword-line"></span>
+      </p>
+
+      <div class="columns is-flex is-flex-wrap-wrap" id="exploits-report">
+        
       </div>
     </div>
   </div>

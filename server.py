@@ -10,6 +10,7 @@ from flask_httpauth import HTTPBasicAuth
 from flask_socketio import SocketIO, emit
 from apscheduler.schedulers.background import BackgroundScheduler
 from models import Flag
+from peewee import fn
 from database import db
 from util.log import logger
 from util.styler import TextStyler as st
@@ -20,7 +21,7 @@ app = Flask(__name__)
 auth = HTTPBasicAuth()
 socketio = SocketIO(app)
 
-tick_number = 0
+tick_number = -1
 tick_start = datetime.max
 submit_func = None
 
@@ -262,6 +263,10 @@ def submitter_wrapper(submit):
         }
     })
 
+    socketio.emit('report_event', {
+        'report': generate_flags_per_tick_report()
+    })
+
     queued_count_st = st.color(
         st.bold(queued_count), 'green') if queued_count == 0 else st.bold(queued_count)
 
@@ -275,16 +280,10 @@ def submitter_wrapper(submit):
         f"{st.bold('Stats')} — {queued_count_st} queued, {accepted_count_st} accepted, {rejected_count_st} rejected.")
 
 
-def setup_database():
-    db.connect()
-    db.create_tables([Flag])
-    Flag.add_index(Flag.value)
-    logger.success('Database connected.')
-
-
 def tick_clock():
     global tick_number, tick_start
 
+    tick_number += 1
     tick_start = datetime.now()
     next_tick_start = tick_start + \
         timedelta(seconds=config['game']['tick_duration'])
@@ -292,7 +291,42 @@ def tick_clock():
     logger.info(f'Started tick {st.bold(str(tick_number))}. ' +
                 f'Next tick scheduled for {st.bold(next_tick_start.strftime("%H:%M:%S"))}. ⏱️')
 
-    tick_number += 1
+
+def generate_flags_per_tick_report():
+    tick_window = 10
+    latest_tick = tick_number  # subtract 1 to ignore last tick
+    oldest_tick = max(0, latest_tick - tick_window + 1)  # add 1 to ignore -11th tick
+
+    query = Flag.select(Flag.player, Flag.exploit, Flag.tick, fn.COUNT(Flag.id).alias('flag_count')) \
+                .where((Flag.tick >= oldest_tick) & (Flag.tick <= latest_tick) & (Flag.status == 'accepted')) \
+                .group_by(Flag.player, Flag.exploit, Flag.tick)
+    results = [(result.player, result.exploit, result.tick, result.flag_count) for result in query]
+
+    report = {}
+    tick_indices = [i for i in range(oldest_tick, latest_tick + 1)]
+
+    for player, exploit, tick, flag_count in results:
+        key = f'{player}-{exploit}'
+        if key not in report:
+            report[key] = {
+                'player': player,
+                'exploit': exploit,
+                'history': {
+                    'accepted': [0] * len(tick_indices)
+                }
+            }
+
+        report[key]['history']['accepted'][tick_indices.index(tick)] = flag_count
+    
+    return report
+
+
+
+def setup_database():
+    db.connect()
+    db.create_tables([Flag])
+    Flag.add_index(Flag.value)
+    logger.success('Database connected.')
 
 
 def configure_flask():
