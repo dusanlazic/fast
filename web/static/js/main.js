@@ -39,8 +39,6 @@ const updateCountdown = () => {
   if (tickRemaining > 0 && tickRemaining <= 1) {
     // Reset values before tick starts
     received = duplicates = queued = 0;
-    exploitKeys = Object.keys(exploits); 
-    exploits = {}; // TODO: Instead of clearing exploits, update it
   }
 
   if (tickRemaining < 0) {
@@ -48,9 +46,20 @@ const updateCountdown = () => {
     tickNumber += 1;
     addNotification(`Started tick ${tickNumber}.`);
 
-    for (const key of exploitKeys) {
-      let iconElement = document.getElementById(`exploit-${key}-icon`);
-      iconElement.setAttribute('data-icon', 'svg-spinners:ring-resize');
+    for (const key in exploits) {
+      exploits[key] = {
+        received: 0,
+        duplicates: 0,
+        targets: new Set()
+      }
+
+      if (document.getElementById(`exploit-${key}-received`)) {
+        document.getElementById(`exploit-${key}-received`).textContent = exploits[key].received;
+        document.getElementById(`exploit-${key}-duplicates`).textContent = exploits[key].duplicates;
+        document.getElementById(`exploit-${key}-targets`).textContent = exploits[key].targets.size;
+        document.getElementById(`exploit-${key}-icon`).setAttribute('data-icon', 'svg-spinners:ring-resize');
+        exploitsReportElement.querySelector(`#exploit-${key}`).style.opacity = 0.7;
+      }
     }
   }
 
@@ -66,7 +75,6 @@ fetchSyncData();
 const socket = io.connect('http://' + document.domain + ':' + location.port);
 
 let exploits = {};
-let exploitKeys = []; // temporary helper variable, TODO: Get rid of
 let received = duplicates = queued = inQueue = accepted = rejected = 0;
 
 const receivedElement = document.getElementById('received');
@@ -114,7 +122,8 @@ socket.on('enqueue_event', function (msg) {
     document.getElementById(`exploit-${key}-received`).textContent = exploits[key].received;
     document.getElementById(`exploit-${key}-duplicates`).textContent = exploits[key].duplicates;
     document.getElementById(`exploit-${key}-targets`).textContent = exploits[key].targets.size;
-    document.getElementById(`exploit-${key}-icon`).setAttribute('data-icon', 'ri:checkbox-circle-fill');
+    document.getElementById(`exploit-${key}-icon`).setAttribute('data-icon', 'ri:checkbox-circle-line');
+    exploitsReportElement.querySelector(`#exploit-${key}`).style.opacity = 1;
   }
 });
 
@@ -146,57 +155,68 @@ socket.on('report_event', function (msg) {
     let key = keys[i];
     let report = reports[key];
 
-    if (exploitsReportElement.querySelector(`#exploit-${key}`)) {
-      renderChart(key, report.history.accepted);
-      continue;
-    }
-
-    let reportElement = document.createElement('div');
-    reportElement.id = `exploit-${key}`
-    reportElement.classList.add('column');
-    reportElement.classList.add('is-2');
-    reportElement.innerHTML = `
-      <div class="card">
-        <div class="card-content pl-0 pr-0 pt-4 pb-4">
-          <p class="is-size-6 ml-4">
-            <span class="has-text-grey">${report.player}/</span><span>${report.exploit}</span>
-            <span class="iconify-inline" id="exploit-${key}-icon" data-icon="ri:checkbox-circle-fill">
-          </p>
-          <div style="height: 70px;">
-            <canvas id="canvas-${key}"></canvas>
-          </div>
-          <div class="pl-4 pr-4 pt-1 is-flex is-justify-content-space-between">            
-            <p class="has-text-grey is-size-6">
-              <span class="iconify-inline mr-2" data-icon="ri:flag-fill"></span><span id="exploit-${key}-received">0</span>
+    let exploitCardElement = exploitsReportElement.querySelector(`#exploit-${key}`);
+    if (exploitCardElement) {
+      if (report.data.accepted.slice(1).reduce((x, y) => x + y, 0) === 0) {
+        exploitCardElement.remove();
+        delete charts[key];
+      } else {
+        exploitCardElement.style.opacity = 1;
+        renderChart(key, report.data);
+      }
+    } else {
+      let reportElement = document.createElement('div');
+      reportElement.id = `exploit-${key}`
+      reportElement.classList.add('column');
+      reportElement.classList.add('is-2');
+      reportElement.innerHTML = `
+        <div class="card">
+          <div class="card-content pl-0 pr-0 pt-4 pb-4">
+            <p class="is-size-6 ml-4">
+              <span class="has-text-grey">${report.player}/</span><span>${report.exploit}</span>
+              <span class="iconify-inline" id="exploit-${key}-icon" data-icon="ri:checkbox-circle-fill">
             </p>
-            <p class="has-text-grey is-size-6">
-              <span class="iconify-inline mr-2" data-icon="ri:delete-bin-6-fill"></span><span id="exploit-${key}-duplicates">0</span>
-            </p>
-            <p class="has-text-grey is-size-6">
-              <span class="iconify-inline mr-2" data-icon="ri:crosshair-2-line"></span><span id="exploit-${key}-targets">0</span>
-            </p>
+            <div style="height: 70px;">
+              <canvas id="canvas-${key}"></canvas>
+            </div>
+            <div class="pl-4 pr-4 pt-1 is-flex is-justify-content-space-between">            
+              <p class="has-text-grey is-size-6">
+                <span class="iconify-inline mr-2" data-icon="ri:flag-fill"></span><span id="exploit-${key}-received">0</span>
+              </p>
+              <p class="has-text-grey is-size-6">
+                <span class="iconify-inline mr-2" data-icon="ri:delete-bin-6-fill"></span><span id="exploit-${key}-duplicates">0</span>
+              </p>
+              <p class="has-text-grey is-size-6">
+                <span class="iconify-inline mr-2" data-icon="ri:crosshair-2-line"></span><span id="exploit-${key}-targets">0</span>
+              </p>
+            </div>
           </div>
         </div>
-      </div>
-    `
-
-    exploitsReportElement.appendChild(reportElement);
-    renderChart(key, report.history.accepted)
+      `
+      exploitsReportElement.appendChild(reportElement);
+      renderChart(key, report.data);
+    }
   }
 })
 
 
-const renderChart = (exploitKey, flagHistory) => {
-  let oldestTick = tickNumber - flagHistory.length + 1;
-  let labels = Array.from({length: flagHistory.length}, (_, i) => `Tick ${oldestTick + i}`);
+const renderChart = (exploitKey, data) => {
+  let labels = data.ticks.map(num => `Tick ${num}`);
 
   if (charts.hasOwnProperty(exploitKey)) {
     let chart = charts[exploitKey];
-    chart.config.data.datasets[0].data = flagHistory;
+    chart.config.data.datasets[0].data = data.accepted;
     chart.config.data.labels = labels;
-    chart.config.options.scales.y.min = Math.floor(Math.min(...flagHistory) * 0.8)
-    chart.config.options.scales.y.max = Math.floor(Math.max(...flagHistory) * 1.2)
+    chart.config.options.scales.y.min = Math.floor(Math.min(...data.accepted) * 0.8)
+    chart.config.options.scales.y.max = Math.floor(Math.max(...data.accepted) * 1.2)
     chart.update();
+
+    let iconElement = document.getElementById(`exploit-${exploitKey}-icon`);
+    if (data.accepted[data.accepted.length - 1] === 0) {
+      iconElement.setAttribute('data-icon', 'ri:alert-fill');
+    } else {
+      iconElement.setAttribute('data-icon', 'ri:checkbox-circle-fill');
+    }
   } else {
     const ctx = document.getElementById(`canvas-${exploitKey}`);
 
@@ -206,7 +226,7 @@ const renderChart = (exploitKey, flagHistory) => {
         labels: labels,
         datasets: [{
           label: 'Accepted',
-          data: flagHistory,
+          data: data.accepted,
           borderColor: '#EF233C',
           pointBackgroundColor: '#EF233C',
           pointHoverBackgroundColor: '#EF233C',
@@ -227,8 +247,8 @@ const renderChart = (exploitKey, flagHistory) => {
           },
           y: {
             display: false,
-            min: Math.floor(Math.min(...flagHistory) * 0.8),
-            max: Math.ceil(Math.max(...flagHistory) * 1.2)
+            min: Math.floor(Math.min(...data.accepted) * 0.8),
+            max: Math.ceil(Math.max(...data.accepted) * 1.2)
           }
         },
         plugins: {
@@ -262,14 +282,6 @@ const renderChart = (exploitKey, flagHistory) => {
   }
 };
 
-const updateChart = (exploitKey, amount) => {
-  if (charts.hasOwnProperty(exploitKey)) {
-    let chart = charts[exploitKey];
-    let data = chart.config.data.datasets[0].data;
-    data[data.length - 1] += amount;
-    chart.update();
-  }
-}
 
 
 function signPrefix(num) {

@@ -311,12 +311,13 @@ def generate_flags_per_tick_report():
             report[key] = {
                 'player': player,
                 'exploit': exploit,
-                'history': {
+                'data': {
+                    'ticks': tick_indices,
                     'accepted': [0] * len(tick_indices)
                 }
             }
 
-        report[key]['history']['accepted'][tick_indices.index(tick)] = flag_count
+        report[key]['data']['accepted'][tick_indices.index(tick)] = flag_count
     
     return report
 
