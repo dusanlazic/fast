@@ -24,11 +24,6 @@ Or you can do it yourself.
 
 ```sh
 git clone --depth 1 https://github.com/dusanlazic/fast.git
-pip install fast/
-```
-
-If you wish to edit the source code while using it, install in editable mode.
-```sh
 pip install -e fast/
 ```
 
@@ -42,7 +37,7 @@ pip install -e fast/
 game:
   tick_duration: 120
   flag_format: FAST\{[a-f0-9]{10}\}  # Fast will extract all the flags from your exploit's response
-  team_ip: 172.20.0.5  # Skip your own team. If your team has multiple addresses, use a list: [172.20.0.5, 172.20.1.5, 172.20.2.5]
+  team_ip: 172.20.0.5  # Discard flags of your own team. If your team has multiple addresses, use a list: [172.20.0.5, 172.20.1.5, 172.20.2.5]
 
 submitter:
   delay: 10  # Submit flags 10 seconds after the beginning of each tick
@@ -57,7 +52,15 @@ server:
 
 2. In the same directory, create a submitter script. If you did not specify `module` in `server.yaml`, name it `submitter.py`. Otherwise, name it to match your custom module name. To work properly with Fast, submitter should follow this [submitter script guideline](#submitter-script-guideline).
 
-3. Run server.
+3. Run Postgres database. For now, you can use this one-liner.
+
+```sh
+docker pull postgres:alpine && docker run --name "fast_database_container" -e POSTGRES_DB="fast" -e POSTGRES_USER="admin" -e POSTGRES_PASSWORD="admin" -p 5432:5432 -d postgres
+```
+
+*In the later versions, you will be able to configure database connection.s
+
+4. Run server.
 
 ```
 server
@@ -84,7 +87,7 @@ myexploits/
 
 ```yaml
 connect:
-  host: 192.168.1.49  # IP address of the machine that is running Fast server
+  host: 192.168.1.49  # Host of the machine that is running Fast server
   port: 2023
   player: s4ndu  # Your username to identify your actions in logs
   password: letmein  # If the server has a password, use it here
@@ -222,12 +225,12 @@ Executing this command will run the specified exploits and tell the server to su
 
 ## Planned features and goals
 
-- [ ] Web dashboard for monitoring. (WIP)
-- [ ] Easy exploit health monitoring on dashboard.
 - [ ] Handle connection failure with the server and provide a fallback for keeping the flags locally.
 - [ ] Guarantee that every non-duplicate retrieved flag will be submitted.
-- [ ] Support HTTPS to prevent packet sniffing for flags
+- [ ] Support HTTPS to prevent packet sniffing for flags.
 - [ ] Optional centralized client integrated with git repository.
+- [x] Web dashboard for monitoring.
+- [x] Easy exploit health monitoring on dashboard.
 - [x] Verbose flag history (track OLD, DUP, etc.)
 - [x] Validate configs when starting.
 - [x] Make some client configuration (e.g. `connect`) immutable after starting.
