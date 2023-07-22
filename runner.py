@@ -57,6 +57,11 @@ def exploit_wrapper(exploit_func, target):
 
         if found_flags:
             response = handler.enqueue(found_flags, exploit_name, target)
+
+            if 'new' not in response:
+                logger.warning(f"{st.bold(exploit_name)} retrieved own flag! Patch the service ASAP.")
+                return
+
             new_flags, duplicate_flags = response['new'], response['duplicates'],
             new_flags_count, duplicate_flags_count = len(
                 new_flags), len(duplicate_flags)

@@ -146,6 +146,27 @@ def enqueue():
     })
 
 
+@app.route('/vuln-report', methods=['POST'])
+@basic
+def vulnerability_report():
+    exploit = request.json['exploit']
+    target = request.json['target']
+    player = request.json['player']
+
+    socketio.emit('vulnerability_event', {
+        'player': player,
+        'target': target,
+        'exploit': exploit
+    })
+
+    logger.warning(f"{st.bold(player)} retrieved " +
+                   f"{st.bold('own')} flag from {st.bold(target)} using {st.bold(exploit)}! Patch the service ASAP.")
+
+    return dict({
+        'message': 'Vulnerability reported.'
+    })
+
+
 @app.route('/sync')
 @basic
 def sync():

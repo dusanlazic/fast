@@ -58,6 +58,7 @@ const updateCountdown = () => {
         document.getElementById(`exploit-${key}-duplicates`).textContent = exploits[key].duplicates;
         document.getElementById(`exploit-${key}-targets`).textContent = exploits[key].targets.size;
         document.getElementById(`exploit-${key}-icon`).setAttribute('data-icon', 'svg-spinners:ring-resize');
+        document.getElementById(`exploit-${key}-vuln`).classList.add('is-hidden');
         exploitsReportElement.querySelector(`#exploit-${key}`).style.opacity = 0.7;
       }
     }
@@ -174,7 +175,8 @@ socket.on('report_event', function (msg) {
           <div class="card-content pl-0 pr-0 pt-4 pb-4">
             <p class="is-size-6 ml-4">
               <span class="has-text-grey">${report.player}/</span><span>${report.exploit}</span>
-              <span class="iconify-inline" id="exploit-${key}-icon" data-icon="ri:checkbox-circle-fill">
+              <span class="iconify-inline" id="exploit-${key}-icon" data-icon="ri:checkbox-circle-fill"></span>
+              <span class="iconify-inline has-text-primary is-hidden" id="exploit-${key}-vuln" data-icon="bxs:band-aid"></span>
             </p>
             <div style="height: 70px;">
               <canvas id="canvas-${key}"></canvas>
@@ -199,6 +201,14 @@ socket.on('report_event', function (msg) {
   }
 })
 
+socket.on('vulnerability_event', function (msg) {
+  key = `${msg.player}-${msg.exploit}`;
+
+  let vulnIconElement = document.getElementById(`exploit-${key}-vuln`);
+  if (vulnIconElement) {
+    vulnIconElement.classList.remove('is-hidden');
+  }
+})
 
 const renderChart = (exploitKey, data) => {
   let labels = data.ticks.map(num => `Tick ${num}`);

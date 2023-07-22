@@ -70,8 +70,11 @@ class SubmitClient(object):
             'target': target,
             'player': self.connect['player']
         })
+
+        endpoint = 'enqueue' if target not in self.game['team_ip'] else 'vuln-report'
+
         response = requests.post(
-            f'{self.url}/enqueue', data=payload, headers=headers)
+            f'{self.url}/{endpoint}', data=payload, headers=headers)
         return response.json()
 
     def trigger_submit(self):

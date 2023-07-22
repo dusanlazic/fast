@@ -131,8 +131,7 @@ def parse_exploit_entry(entry):
     name = entry.get('name')
     cmd = entry.get('cmd')
     module = None if cmd else (entry.get('module') or name).replace('.py', '')
-    targets = [ip for ip_range in entry['targets']
-               for ip in expand_ip_range(ip_range) if ip not in handler.game['team_ip']]
+    targets = [ip for ip_range in entry['targets'] for ip in expand_ip_range(ip_range)]
     timeout = entry.get('timeout')
     env = entry.get('env') or {}
     delay = entry.get('delay')
