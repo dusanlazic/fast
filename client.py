@@ -60,8 +60,12 @@ def run_exploit(exploit):
         exploit.targets + ['--name', exploit.name]
     if exploit.module:
         runner_command.extend(['--module', exploit.module])
-    if exploit.cmd:
-        runner_command.extend(['--cmd', exploit.cmd])
+    if exploit.run:
+        runner_command.extend(['--run', exploit.run])
+    if exploit.prepare:
+        runner_command.extend(['--prepare', exploit.prepare])
+    if exploit.cleanup:
+        runner_command.extend(['--cleanup', exploit.cleanup])
     if exploit.timeout:
         runner_command.extend(['--timeout', str(exploit.timeout)])
     if exploit.delay:
@@ -129,14 +133,16 @@ def expand_ip_range(ip_range):
 
 def parse_exploit_entry(entry):
     name = entry.get('name')
-    cmd = entry.get('cmd')
-    module = None if cmd else (entry.get('module') or name).replace('.py', '')
+    run = entry.get('run')
+    prepare = entry.get('prepare')
+    cleanup = entry.get('cleanup')
+    module = None if run else (entry.get('module') or name).replace('.py', '')
     targets = [ip for ip_range in entry['targets'] for ip in expand_ip_range(ip_range)]
     timeout = entry.get('timeout')
     env = entry.get('env') or {}
     delay = entry.get('delay')
 
-    return ExploitDetails(name, targets, module, cmd, timeout, env, delay)
+    return ExploitDetails(name, targets, module, run, prepare, cleanup, timeout, env, delay)
 
 
 def load_config():

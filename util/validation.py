@@ -102,7 +102,13 @@ exploit_schema = {
         "module": {
             "type": "string",
         },
-        "cmd": {
+        "run": {
+            "type": "string",
+        },
+        "prepare": {
+            "type": "string",
+        },
+        "cleanup": {
             "type": "string",
         },
         "env": {
@@ -162,6 +168,7 @@ submitter_schema = {
     "type": "object",
     "properties": {
         "delay": {"type": "number", "exclusiveMinimum": 0},
+        "run_every_nth_tick": {"type": "integer", "minimum": 1},
         "module": {"type": "string"},
     },
     "required": ["delay"],

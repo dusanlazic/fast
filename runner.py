@@ -14,7 +14,6 @@ from util.styler import TextStyler as st
 from util.log import logger, log_error, log_warning
 
 exploit_name = ''
-shell_command = []
 handler: SubmitClient = None
 
 # TODO: Handle connection failure and provide a fallback way of
@@ -22,17 +21,25 @@ handler: SubmitClient = None
 
 
 def main(args):
-    global exploit_name, shell_command, handler
+    global exploit_name, handler
     handler = SubmitClient()
     exploit_name = args.name
 
-    if args.cmd:
-        shell_command = shlex.split(args.cmd)
-        exploit_func = run_shell_command
+    if args.run:
+        exploit_func = exploit_func_from_shell(args.run)
+        prepare_func = None
+        cleanup_func = None
     else:
         sys.path.append(os.getcwd())
         module = import_module(f'{args.module}')
         exploit_func = getattr(module, 'exploit')
+        prepare_func = getattr(module, 'prepare', None)
+        cleanup_func = getattr(module, 'cleanup', None)
+
+    if args.prepare:
+        def prepare_func(): return run_shell_command(args.prepare)
+    if args.cleanup:
+        def cleanup_func(): return run_shell_command(args.cleanup)
 
     threads = [
         threading.Thread(
@@ -42,11 +49,17 @@ def main(args):
         for target in args.targets
     ]
 
+    if prepare_func:
+        prepare_func()
+
     for t in threads:
         t.start()
 
     for t in threads:
         t.join()
+
+    if cleanup_func:
+        cleanup_func()
 
 
 @stopit.threading_timeoutable()
@@ -98,16 +111,22 @@ def exploit_wrapper(exploit_func, target):
         log_error(exploit_name, target, e)
 
 
-def run_shell_command(target):
-    rendered_command = [target if value ==
-                        '[ip]' else value for value in shell_command]
+def exploit_func_from_shell(command):
+    def exploit_func(target):
+        rendered_command = shlex.join([target if value ==
+                                       '[ip]' else value for value in shlex.split(command)])
+        return run_shell_command(rendered_command)
 
-    result = subprocess.run(
-        rendered_command,
+    return exploit_func
+
+
+def run_shell_command(command):
+    return subprocess.run(
+        command,
         capture_output=True,
+        shell=True,
         text=True
-    )
-    return result.stdout.strip()
+    ).stdout.strip()
 
 
 def match_flags(text):
@@ -124,8 +143,12 @@ if __name__ == "__main__":
                         required=True, help="Name of the exploit for its identification")
     parser.add_argument("--module", metavar="Exploit", type=str,
                         help="Name of the module containing the 'exploit' function")
-    parser.add_argument("--cmd", metavar="Command", type=str,
+    parser.add_argument("--run", metavar="Command", type=str,
                         help="Optional shell command for running the exploit if it is not a Python script")
+    parser.add_argument("--prepare", metavar="Command", type=str,
+                        help="Run prepare command from the module before attacking")
+    parser.add_argument("--cleanup", metavar="Command", type=str,
+                        help="Run cleanup command from the module before attacking")
     parser.add_argument("--timeout", type=int, default=30,
                         help="Optional timeout for exploit in seconds")
 
