@@ -10,7 +10,7 @@ from flask_httpauth import HTTPBasicAuth
 from flask_socketio import SocketIO, emit
 from apscheduler.schedulers.background import BackgroundScheduler
 from models import Flag
-from peewee import fn
+from peewee import fn, IntegrityError
 from database import db
 from util.log import logger
 from util.styler import TextStyler as st
@@ -118,14 +118,17 @@ def enqueue():
     target = request.json['target']
     player = request.json['player']
 
-    with db.atomic():
-        duplicate_flags = [flag.value for flag in Flag.select().where(
-            Flag.value.in_(flags))]
-        new_flags = [flag for flag in flags if flag not in duplicate_flags]
+    new_flags = []
+    duplicate_flags = []
 
-        if new_flags:
-            Flag.bulk_create([Flag(value=flag, exploit=exploit, target=target, tick=tick_number,
-                                   player=player, status='queued') for flag in new_flags])
+    for flag_value in flags:
+        try:
+            with db.atomic():
+                flag = Flag.create(value=flag, exploit=exploit, target=target,
+                                tick=tick_number, player=player, status='queued')
+            new_flags.append(flag_value)
+        except IntegrityError:
+            duplicate_flags.append(flag_value)
     
     if new_flags:
         logger.success(f"{st.bold(player)} retrieved " +

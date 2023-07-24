@@ -3,7 +3,7 @@ from datetime import datetime
 from database import BaseModel
 
 class Flag(BaseModel):
-    value = CharField()
+    value = CharField(unique=True)
     exploit = CharField()
     player = CharField()
     tick = IntegerField()
