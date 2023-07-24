@@ -1,9 +1,8 @@
 import re
 import os
 import sys
-import yaml
+import time
 import shlex
-import stopit
 import argparse
 import threading
 import subprocess
@@ -44,8 +43,8 @@ def main(args):
     threads = [
         threading.Thread(
             target=exploit_wrapper,
-            args=(exploit_func, target),
-            kwargs={'timeout': args.timeout})
+            name=target,
+            args=(exploit_func, target))
         for target in args.targets
     ]
 
@@ -55,14 +54,14 @@ def main(args):
     for t in threads:
         t.start()
 
-    for t in threads:
-        t.join()
+    for t in join_threads(threads, args.timeout):
+        logger.error(
+            f"{st.bold(exploit_name)} took longer than {st.bold(str(args.timeout))} seconds for {st.bold(t.name)}. ⌛")
 
     if cleanup_func:
         cleanup_func()
 
 
-@stopit.threading_timeoutable()
 def exploit_wrapper(exploit_func, target):
     try:
         response_text = exploit_func(target)
@@ -98,11 +97,6 @@ def exploit_wrapper(exploit_func, target):
             logger.warning(
                 f"{st.bold(exploit_name)} retrieved no flags from {st.bold(target)}. — {st.color(repr(truncate(response_text, 50)), 'yellow')}")
             log_warning(exploit_name, target, response_text)
-
-    except stopit.utils.TimeoutException as e:
-        logger.error(
-            f"{st.bold(exploit_name)} took longer than {st.bold(str(args.timeout))} seconds for {st.bold(target)}. ⌛"
-        )
     except Exception as e:
         exception_name = '.'.join([type(e).__module__, type(e).__qualname__])
         logger.error(
@@ -133,6 +127,19 @@ def match_flags(text):
     matches = re.findall(handler.game['flag_format'], text)
     return matches if matches else None
 
+
+def join_threads(threads, timeout):
+    start = now = time.time()
+    while now <= (start + timeout):
+        for thread in threads:
+            if thread.is_alive():
+                thread.join(timeout=0)
+        if all(not t.is_alive() for t in threads):
+            return []
+        time.sleep(0.1)
+        now = time.time()
+    else:
+        return [t for t in threads if t.is_alive()]
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
