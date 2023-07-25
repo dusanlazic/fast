@@ -1,4 +1,4 @@
-from peewee import *
+from peewee import Model, PostgresqlDatabase, SqliteDatabase
 
 db = PostgresqlDatabase(
     'fast', 
@@ -11,3 +11,11 @@ db = PostgresqlDatabase(
 class BaseModel(Model):
     class Meta:
         database = db
+
+
+fallbackdb = SqliteDatabase('fallback.db')
+
+
+class FallbackBaseModel(Model):
+    class Meta:
+        database = fallbackdb

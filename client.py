@@ -5,12 +5,14 @@ import hashlib
 import threading
 import subprocess
 from itertools import product
-from models import ExploitDetails
+from database import fallbackdb
+from models import ExploitDetails, FallbackFlag
 from handler import SubmitClient
 from util.styler import TextStyler as st
 from util.helpers import seconds_from_now
 from util.log import logger, create_log_dir
 from util.validation import validate_data, validate_targets, connect_schema, exploits_schema
+from requests.exceptions import HTTPError, ConnectionError, Timeout, RequestException
 from apscheduler.schedulers.background import BlockingScheduler
 
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
@@ -39,6 +41,14 @@ def main():
         trigger='interval',
         seconds=handler.game['tick_duration'],
         id='exploits',
+        next_run_time=seconds_from_now(0)
+    )
+
+    scheduler.add_job(
+        func=enqueue_from_fallback,
+        trigger='interval',
+        seconds=handler.game['tick_duration'],
+        id='fallback_flagstore',
         next_run_time=seconds_from_now(0)
     )
 
@@ -78,6 +88,13 @@ def run_exploit(exploit):
                    **exploit.env, **os.environ})
 
     logger.info(f'{st.bold(exploit.name)} finished.')
+
+
+def enqueue_from_fallback():
+    flags = [flag for flag in FallbackFlag.select().where(FallbackFlag.status == 'pending')]
+    if flags:
+        logger.info(f'Forwarding {len(flags)} flags from the fallback flagstore...')
+        handler.enqueue_from_fallback(flags)
 
 
 def load_exploits():
@@ -164,7 +181,6 @@ def load_config():
     logger.info('Checking exploits config...')
     exploits_data = yaml_data.get('exploits')
     if not exploits_data:
-        print(exploits_data)
         logger.warning(f"{st.bold('exploits')} section is missing in {st.bold('fast.yaml')}. Please add {st.bold('exploits')} section to start running exploits in the next tick.")
     elif exploits_data and not validate_data(exploits_data, exploits_schema, custom=validate_targets):
         logger.error(f"Fix errors in {st.bold('exploits')} section in {st.bold('fast.yaml')} and rerun.")
@@ -185,14 +201,38 @@ def setup_handler(fire_mode=False):
         conn_str = f"{connect['protocol']}://{connect['host']}:{connect['port']}"
 
     logger.info(f"Connecting to {st.color(conn_str, 'cyan')}")
-    handler = SubmitClient(connect)
 
-    config_repr = f"{handler.game['tick_duration']}s tick, {handler.game['flag_format']}, {' '.join(handler.game['team_ip'])}"
-    logger.success(f'Game configured successfully. — {st.faint(config_repr)}')
+    try:
+        handler = SubmitClient(connect)
 
-    # Synchronize client with server's tick clock
-    if not fire_mode:
-        handler.sync()
+        config_repr = f"{handler.game['tick_duration']}s tick, {handler.game['flag_format']}, {' '.join(handler.game['team_ip'])}"
+        logger.success(f'Game configured successfully. — {st.faint(config_repr)}')
+
+        # Synchronize client with server's tick clock
+        if not fire_mode:
+            handler.sync()
+    except HTTPError as e:
+        if e.response.status_code == 401:
+            error = f'Failed to authenticate with the Fast server. Check the password with your teammates and try again.'
+        else:
+            error = f'HTTP error occurred while connecting to the Fast server. Status code: {e.response.status_code}, Reason: {e.response.text}'
+    except ConnectionError as e:
+        error = f'Error connecting to the Fast server at URL {conn_str}. Ensure the server is up and running, your configuration is correct, and your network connection is stable.'
+    except Timeout as e:
+        error = f"Connection to Fast server has timed out."
+    except RequestException as e:
+        exception_name = '.'.join([type(e).__module__, type(e).__qualname__])
+        error = f"Some unexpected error occurred during connecting to Fast server. — {st.color(exception_name, 'red')}"
+    else:
+        error = None
+    finally:
+        if error:
+            logger.error(error)
+            exit(1)
+
+    # Setup fallback db
+    fallbackdb.connect(reuse_if_open=True)
+    fallbackdb.create_tables([FallbackFlag])
 
 
 def splash():

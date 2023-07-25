@@ -4,6 +4,8 @@ import requests
 from util.log import logger
 from util.styler import TextStyler as st
 from datetime import datetime, timedelta
+from database import fallbackdb
+from models import FallbackFlag
 
 IMMUTABLE_CONFIG_PATH = '.config.json'
 
@@ -19,10 +21,12 @@ class SubmitClient(object):
             self._client_configure()
         else:
             self._runner_configure()
+        self._connect_to_fallbackdb()
 
     def _client_configure(self):
         self._update_url()
         response = requests.get(f'{self.url}/config', params={'player': self.connect['player']})
+        response.raise_for_status()
         server_config = response.json()
         self.game = server_config['game']
 
@@ -55,6 +59,9 @@ class SubmitClient(object):
         else:
             self.url = f"{protocol}://{host}:{port}"
 
+    def _connect_to_fallbackdb(self):
+        fallbackdb.connect(reuse_if_open=True)
+
     def sync(self):
         response = requests.get(f'{self.url}/sync')
         sync_data = response.json()
@@ -71,11 +78,44 @@ class SubmitClient(object):
             'player': self.connect['player']
         })
 
-        endpoint = 'enqueue' if target not in self.game['team_ip'] else 'vuln-report'
+        if target in self.game['team_ip']:
+            try:
+                response = requests.post(f'{self.url}/vuln-report', data=payload, headers=headers)
+            except Exception:
+                pass
+            return {'own': len(flags)}
+        
+        try:
+            response = requests.post(
+                f'{self.url}/enqueue', data=payload, headers=headers)
+        except Exception:
+            for flag_value in flags:
+                with fallbackdb.atomic():
+                    FallbackFlag.create(value=flag_value, exploit=exploit, target=target, 
+                                        status='pending')
+            return {'pending': len(flags)}
+        else:
+            return response.json()
 
-        response = requests.post(
-            f'{self.url}/{endpoint}', data=payload, headers=headers)
-        return response.json()
+    def enqueue_from_fallback(self, flags):
+        for flag in flags:
+            payload = json.dumps({
+                'flags': [flag.value],
+                'exploit': flag.exploit,
+                'target': flag.target,
+                'player': self.connect['player'],
+                'timestamp': flag.timestamp.timestamp()
+            })
+            try:
+                response = requests.post(
+                    f'{self.url}/enqueue', data=payload, headers=headers)
+                response.raise_for_status()
+            except Exception:
+                logger.error("Server is unavailable. Skipping...")
+                break
+            else:
+                with fallbackdb.atomic():
+                    FallbackFlag.update(status='forwarded').where(FallbackFlag.value == flag.value).execute()
 
     def trigger_submit(self):
         payload = json.dumps({

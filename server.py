@@ -25,6 +25,7 @@ socketio = SocketIO(app)
 
 tick_number = -1
 tick_start = datetime.max
+server_start = datetime.max
 submit_func = None
 
 config = {
@@ -104,6 +105,11 @@ def authenticate(username, password):
     return password == config['server']['password']
 
 
+@auth.error_handler
+def unauthorized():
+    return {"error": "Unauthorized access"}, 401
+
+
 def basic(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
@@ -127,6 +133,8 @@ def enqueue():
     exploit = request.json['exploit']
     target = request.json['target']
     player = request.json['player']
+    timestamp = request.json.get('timestamp', None)
+    tick = int((datetime.fromtimestamp(timestamp) - server_start).total_seconds() // config['game']['tick_duration']) if timestamp else tick_number
 
     new_flags = []
     duplicate_flags = []
@@ -135,7 +143,7 @@ def enqueue():
         try:
             with db.atomic():
                 Flag.create(value=flag_value, exploit=exploit, target=target, 
-                            tick=tick_number, player=player, status='queued')
+                            tick=tick, player=player, status='queued')
             new_flags.append(flag_value)
         except IntegrityError:
             duplicate_flags.append(flag_value)
@@ -153,10 +161,10 @@ def enqueue():
         'exploit': exploit
     })
 
-    return dict({
+    return {
         'duplicates': duplicate_flags,
         'new':  new_flags
-    })
+    }
 
 
 @app.route('/vuln-report', methods=['POST'])
@@ -175,9 +183,9 @@ def vulnerability_report():
     logger.warning(f"{st.bold(player)} retrieved " +
                    f"{st.bold('own')} flag from {st.bold(target)} using {st.bold(exploit)}! Patch the service ASAP.")
 
-    return dict({
+    return {
         'message': 'Vulnerability reported.'
-    })
+    }
 
 
 @app.route('/sync')
@@ -194,7 +202,7 @@ def sync():
     next_submit: datetime = tick_start + timedelta(seconds=submit_delay + (duration if elapsed > submit_delay else 0))
     next_submit_remaining = (next_submit - now).total_seconds()
 
-    return dict({
+    return {
         'submitter': {
             'remaining': next_submit_remaining,
             'delay': submit_delay
@@ -205,7 +213,7 @@ def sync():
             'elapsed': elapsed,
             'remaining': remaining,
         }
-    })
+    }
 
 
 @app.route('/config')
@@ -218,7 +226,7 @@ def get_config():
         'message': f'{player} has connected from {address}.'
     })
 
-    return dict(config)
+    return config
 
 
 @app.route('/trigger-submit', methods=['POST'])
@@ -228,9 +236,9 @@ def trigger_submit():
     submitter_wrapper(submit_func)
 
     # TODO: Improve interactivity
-    return dict({
+    return {
         'message': 'Flags submitted.'
-    })
+    }
 
 
 def submitter_wrapper(submit):
@@ -356,7 +364,6 @@ def generate_flags_per_tick_report():
     return report
 
 
-
 def setup_database():
     db.connect()
     db.create_tables([Flag])
@@ -401,18 +408,18 @@ def load_config():
 
 
 def recover():
-    global tick_start, tick_number
+    global tick_start, tick_number, server_start
 
     if os.path.isfile(RECOVERY_CONFIG_PATH):
         with open(RECOVERY_CONFIG_PATH) as file:
             recovery_data = json.loads(file.read())
         
         now = datetime.now()
-        started = datetime.fromtimestamp(float(recovery_data['started']))
+        server_start = datetime.fromtimestamp(float(recovery_data['started']))
         tick_duration = timedelta(seconds=config['game']['tick_duration'])
 
-        ticks_passed = (now - started) // tick_duration
-        into_tick = (now - started) % tick_duration
+        ticks_passed = (now - server_start) // tick_duration
+        into_tick = (now - server_start) % tick_duration
 
         tick_start = now + tick_duration - into_tick
         tick_number = ticks_passed
@@ -420,11 +427,12 @@ def recover():
         logger.info(f"Continuing from tick {st.bold(tick_number)}. Tick scheduled for {st.bold(tick_start.strftime('%H:%M:%S'))}. ⏱️")
         logger.info(f"To reset Fast and run from tick 0, run {st.bold('reset')} and rerun.")
     else:
-        tick_start = datetime.now() + timedelta(seconds=0.5)
+        tick_start = server_start = datetime.now() + timedelta(seconds=0.5)
         with open(RECOVERY_CONFIG_PATH, 'w') as file:
             file.write(json.dumps({
                 'started': tick_start.timestamp(),
             }))
+
 
 def splash():
     serv = st.color("server", "green")

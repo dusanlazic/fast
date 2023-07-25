@@ -70,8 +70,11 @@ def exploit_wrapper(exploit_func, target):
         if found_flags:
             response = handler.enqueue(found_flags, exploit_name, target)
 
-            if 'new' not in response:
+            if 'own' in response:
                 logger.warning(f"{st.bold(exploit_name)} retrieved own flag! Patch the service ASAP.")
+                return
+            elif 'pending' in response:
+                logger.warning(f"{st.bold(exploit_name)} retrieved {response['pending']} flag{'s' if response['pending'] > 1 else ''}, but there is no connection to the server.")
                 return
 
             new_flags, duplicate_flags = response['new'], response['duplicates'],
@@ -155,7 +158,7 @@ if __name__ == "__main__":
     parser.add_argument("--prepare", metavar="Command", type=str,
                         help="Run prepare command from the module before attacking")
     parser.add_argument("--cleanup", metavar="Command", type=str,
-                        help="Run cleanup command from the module before attacking")
+                        help="Run cleanup command from the module after attacking")
     parser.add_argument("--timeout", type=int, default=30,
                         help="Optional timeout for exploit in seconds")
 
