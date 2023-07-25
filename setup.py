@@ -25,6 +25,7 @@ setup(
         'console_scripts': [
             'fast = client:main',
             'server = server:main',
+            'reset = cli:reset',
             'fire = cli:fire',
             'submit = cli:submit',
         ],

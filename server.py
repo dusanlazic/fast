@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 import yaml
 import logging
 import functools
@@ -14,7 +15,7 @@ from peewee import fn, IntegrityError
 from database import db
 from util.log import logger
 from util.styler import TextStyler as st
-from util.helpers import seconds_from_now, truncate, deep_update
+from util.helpers import truncate, deep_update
 from util.validation import validate_data, validate_delay, server_yaml_schema
 
 app = Flask(__name__)
@@ -37,12 +38,15 @@ config = {
     }
 }
 
+RECOVERY_CONFIG_PATH = '.recover.json'
+
 
 def main():
     splash()
     setup_database()
     configure_flask()
     load_config()
+    recover()
 
     game, submitter, server = config['game'], config['submitter'], config['server']
 
@@ -54,15 +58,15 @@ def main():
         trigger='interval',
         seconds=game['tick_duration'],
         id='clock',
-        next_run_time=seconds_from_now(0)
+        next_run_time=tick_start
     )
 
     # Schedule flag submitting
 
-    delay = submitter['delay']
+    delay = timedelta(seconds=submitter['delay'])
     run_every_nth = submitter['run_every_nth_tick']
     interval = run_every_nth * game['tick_duration']
-    first_run = (run_every_nth - 1) * game['tick_duration'] + delay
+    first_run =  tick_start + (run_every_nth - 1) * timedelta(seconds=game['tick_duration']) + delay
 
     global submit_func
     sys.path.append(os.getcwd())
@@ -75,7 +79,7 @@ def main():
         trigger='interval',
         seconds=interval,
         id='submitter',
-        next_run_time=seconds_from_now(first_run)
+        next_run_time=first_run
     )
 
     # Run scheduler and Flask server
@@ -124,8 +128,8 @@ def enqueue():
     for flag_value in flags:
         try:
             with db.atomic():
-                flag = Flag.create(value=flag, exploit=exploit, target=target,
-                                tick=tick_number, player=player, status='queued')
+                Flag.create(value=flag_value, exploit=exploit, target=target, 
+                            tick=tick_number, player=player, status='queued')
             new_flags.append(flag_value)
         except IntegrityError:
             duplicate_flags.append(flag_value)
@@ -389,6 +393,32 @@ def load_config():
     logger.success(f'Fast server configured successfully.')
     logger.info(f'Server will run at {st.color(conn_str, "cyan")}.')
 
+
+def recover():
+    global tick_start, tick_number
+
+    if os.path.isfile(RECOVERY_CONFIG_PATH):
+        with open(RECOVERY_CONFIG_PATH) as file:
+            recovery_data = json.loads(file.read())
+        
+        now = datetime.now()
+        started = datetime.fromtimestamp(float(recovery_data['started']))
+        tick_duration = timedelta(seconds=config['game']['tick_duration'])
+
+        ticks_passed = (now - started) // tick_duration
+        into_tick = (now - started) % tick_duration
+
+        tick_start = now + tick_duration - into_tick
+        tick_number = ticks_passed
+
+        logger.info(f"Continuing from tick {st.bold(tick_number)}. Tick scheduled for {st.bold(tick_start.strftime('%H:%M:%S'))}. ⏱️")
+        logger.info(f"To reset Fast and run from tick 0, run {st.bold('reset')} and rerun.")
+    else:
+        tick_start = datetime.now() + timedelta(seconds=0.5)
+        with open(RECOVERY_CONFIG_PATH, 'w') as file:
+            file.write(json.dumps({
+                'started': tick_start.timestamp(),
+            }))
 
 def splash():
     serv = st.color("server", "green")

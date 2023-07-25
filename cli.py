@@ -1,8 +1,12 @@
+import os
+import json
 import argparse
 import threading
 from util.log import logger
 from util.styler import TextStyler as st
 from client import load_exploits, load_config, setup_handler, run_exploit
+from database import db
+from models import Flag
 from handler import SubmitClient
 
 
@@ -34,3 +38,28 @@ def fire():
 
 def submit():
     SubmitClient().trigger_submit()
+
+
+def reset():
+    RECOVERY_CONFIG_PATH = '.recover.json'
+
+    if os.path.isfile(RECOVERY_CONFIG_PATH):
+        with open(RECOVERY_CONFIG_PATH) as file:
+            backup = json.loads(file.read())
+
+        os.remove(RECOVERY_CONFIG_PATH)
+        logger.info(
+            "Tick number reset. If you changed your mind, you can still copy it:")
+        logger.info(st.color(backup, 'green'))
+
+    confirm_string = "\'); DROP TABLE FLAGS; --"
+
+    print(f"{st.color('?', 'green')} Do you want to {st.color('delete', 'red')} the existing flags?")
+    confirmation = input(
+        f'  Type {st.color(confirm_string, "blue")} to delete all the previous flags. Type anything else to keep them.\n> ') == confirm_string
+
+    if confirmation:
+        db.drop_tables([Flag])
+        logger.success("Table 'Flag' dropped.")
+    else:
+        logger.success("Understood. Skipped deleting flags.")
