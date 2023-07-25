@@ -17,7 +17,9 @@ setup(
         'flask_httpauth',
         'flask_socketio',
         'jsonschema',
-        'APScheduler'
+        'APScheduler',
+        'gunicorn',
+        'gevent-websocket'
     ],
     packages=find_packages(),
     py_modules=['cli', 'client', 'database', 'handler', 'models', 'runner', 'server'],
