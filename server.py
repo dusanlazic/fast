@@ -12,7 +12,7 @@ from flask_httpauth import HTTPBasicAuth
 from flask_socketio import SocketIO, emit
 from apscheduler.schedulers.background import BackgroundScheduler
 from models import Flag
-from peewee import fn, IntegrityError
+from peewee import fn, IntegrityError, PostgresqlDatabase
 from database import db
 from util.log import logger
 from util.styler import TextStyler as st
@@ -37,6 +37,13 @@ config = {
     'server': {
         'host': '0.0.0.0',
         'port': 2023
+    },
+    'database': {
+        'name': 'fast',
+        'user': 'admin',
+        'password': 'admin',
+        'host': 'localhost',
+        'port': 5432
     }
 }
 
@@ -45,9 +52,9 @@ RECOVERY_CONFIG_PATH = '.recover.json'
 
 def main():
     splash()
-    setup_database()
     configure_flask()
     load_config()
+    setup_database()
     recover()
 
     game, submitter, server = config['game'], config['submitter'], config['server']
@@ -365,7 +372,22 @@ def generate_flags_per_tick_report():
 
 
 def setup_database():
-    db.connect()
+    postgres = PostgresqlDatabase(
+        config['database']['name'], 
+        user=config['database']['user'],
+        password=config['database']['password'],
+        host=config['database']['host'],
+        port=config['database']['port']
+    )
+
+    db.initialize(postgres)
+    try:
+        db.connect()
+    except Exception as e:
+        logger.error(
+            f"An error occurred when connecting to the database:\n{st.color(e, 'red')}")
+        exit()
+    
     db.create_tables([Flag])
     Flag.add_index(Flag.value)
     logger.success('Database connected.')

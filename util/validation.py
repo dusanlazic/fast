@@ -186,6 +186,17 @@ server_schema = {
     "additionalProperties": False,
 }
 
+database_schema = {
+    "type": "object",
+    "properties": {
+        "name": {"type": "string"},
+        "user": {"type": "string"},
+        "password": {"type": "string"},
+        "host": {"type": "string", "format": "hostname"},
+        "port": {"type": "integer", "minimum": 1024, "maximum": 65535},
+    },
+    "additionalProperties": False,
+}
 
 server_yaml_schema = {
     "type": "object",
@@ -193,6 +204,7 @@ server_yaml_schema = {
         "game": game_schema,
         "submitter": submitter_schema,
         "server": server_schema,
+        "database": database_schema
     },
     "required": ["game", "submitter"],
 }

@@ -1,11 +1,6 @@
-from peewee import Model, PostgresqlDatabase, SqliteDatabase
+from peewee import Model, Proxy, PostgresqlDatabase, SqliteDatabase
 
-db = PostgresqlDatabase(
-    'fast', 
-    user='admin',
-    password='admin',
-    host='localhost'
-)
+db = Proxy()
 
 
 class BaseModel(Model):
