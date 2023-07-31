@@ -18,7 +18,6 @@ setup(
         'flask_socketio',
         'jsonschema',
         'APScheduler',
-        'gunicorn',
         'gevent-websocket'
     ],
     packages=find_packages(),

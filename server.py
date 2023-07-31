@@ -4,7 +4,6 @@ import json
 import yaml
 import logging
 import functools
-import gunicorn.app.base
 from importlib import import_module
 from datetime import datetime, timedelta
 from flask import Flask, request, render_template
@@ -91,7 +90,7 @@ def main():
         next_run_time=first_run
     )
 
-    # Run scheduler and Flask server
+    # Run scheduler and Gevent server
 
     scheduler.start()
 
@@ -100,11 +99,6 @@ def main():
         host=server['host'],
         port=server['port']
     )
-
-    FastServerApplication(socketio, {
-        'bind': '%s:%s' % (server['host'], server['port']),
-        'workers': 1
-    }).run()
 
 
 @auth.verify_password
@@ -469,21 +463,6 @@ def splash():
  ||      `''''`   Flag Acquisition
  ||   v0.1       and Submission Tool
  ||""")
-
-class FastServerApplication(gunicorn.app.base.BaseApplication):
-    def __init__(self, app, options=None):
-        self.options = options or {}
-        self.application = app
-        super().__init__()
-
-    def load_config(self):
-        config = {key: value for key, value in self.options.items()
-                  if key in self.cfg.settings and value is not None}
-        for key, value in config.items():
-            self.cfg.set(key.lower(), value)
-
-    def load(self):
-        return self.application
 
 
 if __name__ == "__main__":
