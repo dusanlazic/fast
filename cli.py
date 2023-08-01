@@ -5,6 +5,7 @@ import threading
 from util.log import logger
 from util.styler import TextStyler as st
 from client import load_exploits, load_config, setup_handler, run_exploit
+from server import setup_database
 from database import db
 from models import Flag
 from handler import SubmitClient
@@ -52,7 +53,8 @@ def reset():
             "Tick number reset. If you changed your mind, you can still copy it:")
         logger.info(st.color(backup, 'green'))
 
-    confirm_string = "\'); DROP TABLE FLAGS; --"
+    setup_database()
+    confirm_string = "drop table flags;"
 
     print(f"{st.color('?', 'green')} Do you want to {st.color('delete', 'red')} the existing flags?")
     confirmation = input(

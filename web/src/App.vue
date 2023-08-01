@@ -1,3 +1,12 @@
+<script setup>
+import Dashboard from './components/Dashboard.vue'
+</script>
+
+<template>
+  <Dashboard/>
+</template>
+
+<style lang="scss">
 @charset "utf-8";
 
 $primary: #EF233C;
@@ -8,24 +17,9 @@ $body-background-color:  hsl(0, 0%, 96%);
 
 $radius: 0px;
 $progress-border-radius: 0px;
+$progress-bar-background-color: transparent;
+$progress-value-background-color: transparent;
 
-.card {
-    box-shadow: none !important;
-    border: 1px solid #dbdbdb;
-    border-radius: 0px !important;
-}
-
-.card:hover {
-    background-color: #eeeeee;
-}
-
-#notifications {
-    height: 0px;
-    margin-top: 7px;
-    padding-left: 6rem;
-}
-
-/*        fonts        */
 @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;500&display=swap');
 
 @import "../node_modules/bulma/sass/base/_all.sass";
@@ -37,3 +31,4 @@ $progress-border-radius: 0px;
 @import "../node_modules/bulma/sass/helpers/_all.sass";
 @import "../node_modules/bulma/sass/layout/_all.sass";
 @import "../node_modules/bulma/sass/utilities/_all.sass";
+</style>

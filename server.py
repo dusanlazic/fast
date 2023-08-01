@@ -1,3 +1,5 @@
+from gevent import monkey
+monkey.patch_all()
 import os
 import sys
 import json
@@ -9,6 +11,7 @@ from datetime import datetime, timedelta
 from flask import Flask, request, render_template
 from flask_httpauth import HTTPBasicAuth
 from flask_socketio import SocketIO, emit
+from flask_cors import CORS
 from apscheduler.schedulers.background import BackgroundScheduler
 from models import Flag
 from peewee import fn, IntegrityError, PostgresqlDatabase
@@ -18,9 +21,9 @@ from util.styler import TextStyler as st
 from util.helpers import truncate, deep_update
 from util.validation import validate_data, validate_delay, server_yaml_schema
 
-app = Flask(__name__)
+app = Flask(__name__, static_url_path='')
 auth = HTTPBasicAuth()
-socketio = SocketIO(app)
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 tick_number = -1
 tick_start = datetime.max
@@ -121,12 +124,6 @@ def basic(func):
     return wrapper
 
 
-@app.route('/')
-@basic
-def dashboard():
-    return render_template('dashboard.html')
-
-
 @app.route('/enqueue', methods=['POST'])
 @basic
 def enqueue():
@@ -154,7 +151,7 @@ def enqueue():
                     (f"{st.bold(1)} flag " if len(new_flags) == 1 else f"{st.bold(len(new_flags))} flags ") + 
                     f"from {st.bold(target)} using {st.bold(exploit)}. 🚩  — {st.faint(truncate(' '.join(new_flags), 50))}")
 
-    socketio.emit('enqueue_event', {
+    socketio.emit('enqueue', {
         'new': len(new_flags),
         'dup': len(duplicate_flags),
         'player': player,
@@ -175,7 +172,7 @@ def vulnerability_report():
     target = request.json['target']
     player = request.json['player']
 
-    socketio.emit('vulnerability_event', {
+    socketio.emit('vulnerabilityReported', {
         'player': player,
         'target': target,
         'exploit': exploit
@@ -217,13 +214,40 @@ def sync():
     }
 
 
+@app.route('/flagstore-stats')
+@basic
+def get_flagstore_stats():
+    queued_count = Flag.select().where(Flag.status == 'queued').count()
+    accepted_count = Flag.select().where(Flag.status == 'accepted').count()
+    rejected_count = Flag.select().where(Flag.status == 'rejected').count()
+
+    accepted_delta =  Flag.select().where(Flag.status == 'accepted', Flag.tick == tick_number).count()
+    rejected_delta =  Flag.select().where(Flag.status == 'rejected', Flag.tick == tick_number).count()
+
+    return {
+        'queued': queued_count,
+        'accepted': accepted_count,
+        'rejected': rejected_count,
+        'delta': {
+            'accepted': accepted_delta,
+            'rejected': rejected_delta
+        }
+    }
+
+
+@app.route('/exploit-analytics')
+@basic
+def get_exploit_analytics():
+    return generate_exploit_analytics()
+
+
 @app.route('/config')
 @basic
 def get_config():
     player = request.args['player']
     address = request.remote_addr
 
-    socketio.emit('log_event', {
+    socketio.emit('playerConnect', {
         'message': f'{player} has connected from {address}.'
     })
 
@@ -241,25 +265,24 @@ def trigger_submit():
         'message': 'Flags submitted.'
     }
 
-
 def submitter_wrapper(submit):
     flags = [flag.value for flag in
              Flag.select().where(Flag.status == 'queued')]
 
     if not flags:
-        logger.info(f"No flags in the queue! Submission skipped.")
-
-        socketio.emit('log_event', {
+        socketio.emit('submitSkip', {
             'message': 'No flags in the queue! Submission skipped.'
         })
 
+        logger.info(f"No flags in the queue! Submission skipped.")
+
         return
 
-    logger.info(st.bold(f"Submitting {len(flags)} flags..."))
-
-    socketio.emit('log_event', {
+    socketio.emit('submitStart', {
         'message': f'Submitting {len(flags)} flags...'
     })
+
+    logger.info(st.bold(f"Submitting {len(flags)} flags..."))
 
     accepted, rejected = submit(flags)
 
@@ -295,19 +318,17 @@ def submitter_wrapper(submit):
         accepted_count = Flag.select().where(Flag.status == 'accepted').count()
         rejected_count = Flag.select().where(Flag.status == 'rejected').count()
 
-    socketio.emit('submit_complete_event', {
+    socketio.emit('submitComplete', {
         'message': f'{len(accepted)} flag{"s" if len(accepted) > 1 else ""} accepted, {len(rejected)} rejected.',
         'data': {
             'queued': queued_count,
             'accepted': accepted_count,
             'rejected': rejected_count,
-            'acceptedDelta': len(accepted),
-            'rejectedDelta': len(rejected)
+            'delta': {
+                'accepted': len(accepted),
+                'rejected': len(rejected)
+            }
         }
-    })
-
-    socketio.emit('report_event', {
-        'report': generate_flags_per_tick_report()
     })
 
     queued_count_st = st.color(
@@ -331,11 +352,15 @@ def tick_clock():
     next_tick_start = tick_start + \
         timedelta(seconds=config['game']['tick_duration'])
 
+    socketio.emit('tickStart', {
+        'current': tick_number,
+    })
+
     logger.info(f'Started tick {st.bold(str(tick_number))}. ' +
                 f'Next tick scheduled for {st.bold(next_tick_start.strftime("%H:%M:%S"))}. ⏱️')
 
 
-def generate_flags_per_tick_report():
+def generate_exploit_analytics():
     tick_window = 10
     latest_tick = tick_number  # subtract 1 to ignore last tick
     oldest_tick = max(0, latest_tick - tick_window + 1)  # add 1 to ignore -11th tick
@@ -388,11 +413,12 @@ def setup_database():
 
 
 def configure_flask():
-    # Configure templates
-    app.template_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'web', 'views')
+    # Configure CORS
+    if os.environ.get('PYTHON_ENV') == 'development':
+        CORS(app)
 
     # Set static path
-    app.static_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'web', 'static')
+    app.static_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'web', 'dist')
 
     # Disable logs
     logging.getLogger('werkzeug').setLevel(logging.ERROR)

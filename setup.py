@@ -16,6 +16,7 @@ setup(
         'flask',
         'flask_httpauth',
         'flask_socketio',
+        'flask_cors',
         'jsonschema',
         'APScheduler',
         'gevent-websocket'
