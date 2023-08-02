@@ -6,9 +6,10 @@ import json
 import yaml
 import logging
 import functools
+from base64 import b64decode
 from importlib import import_module
 from datetime import datetime, timedelta
-from flask import Flask, request, render_template
+from flask import Flask, request, send_from_directory
 from flask_httpauth import HTTPBasicAuth
 from flask_socketio import SocketIO, emit
 from flask_cors import CORS
@@ -122,6 +123,21 @@ def basic(func):
         else:
             return func(*args, **kwargs)
     return wrapper
+
+
+@socketio.on('connect')
+def authenticate_websocket():
+    auth_header = request.headers.get('Authorization')
+    if not auth_header:
+        return False
+
+    basic, credentials = auth_header.split(' ')
+    if basic.lower() != 'basic':
+        return False
+    
+    username, password = b64decode(credentials).decode('utf-8').split(':')
+    
+    return authenticate(username, password)
 
 
 @app.route('/enqueue', methods=['POST'])
@@ -264,6 +280,13 @@ def trigger_submit():
     return {
         'message': 'Flags submitted.'
     }
+
+
+@app.route('/')
+@basic
+def dashboard():
+    return send_from_directory(app.static_folder, 'index.html')
+
 
 def submitter_wrapper(submit):
     flags = [flag.value for flag in
