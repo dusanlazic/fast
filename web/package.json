@@ -8,10 +8,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@creativebulma/bulma-tooltip": "^1.2.0",
     "axios": "^1.4.0",
     "bulma": "^0.9.4",
+    "chart.js": "^4.3.2",
     "socket.io-client": "^4.7.1",
-    "vue": "^3.3.4"
+    "vue": "^3.3.4",
+    "vue-chartjs": "^5.2.0"
   },
   "devDependencies": {
     "@iconify/vue": "^4.1.1",

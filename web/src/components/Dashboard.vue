@@ -7,6 +7,10 @@ import Analytics from './Analytics.vue'
 timers.initialize()
 counters.initialize()
 
+function getExploitsList() {
+  return Array.from(counters.tick.exploits).sort().join('\n');
+}
+
 </script>
 
 <template>
@@ -72,10 +76,10 @@ counters.initialize()
             <div class="card-content">
               <p class="subtitle">
                 <Icon icon="ri:sword-fill" :inline="true" />
-                Exploits
+                <span class="has-tooltip-arrow" :data-tooltip="getExploitsList()"> Exploits</span>
               </p>
               <p class="title">
-                <span class="has-text-grey-light">...</span>
+                {{ counters.tick.exploits.size }}
               </p>
             </div>
           </div>

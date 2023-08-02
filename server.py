@@ -331,6 +331,8 @@ def submitter_wrapper(submit):
         }
     })
 
+    socketio.emit('analyticsUpdate', generate_exploit_analytics())
+
     queued_count_st = st.color(
         st.bold(queued_count), 'green') if queued_count == 0 else st.bold(queued_count)
 
@@ -370,23 +372,22 @@ def generate_exploit_analytics():
                 .group_by(Flag.player, Flag.exploit, Flag.tick)
     results = [(result.player, result.exploit, result.tick, result.flag_count) for result in query]
 
-    report = {}
     tick_indices = [i for i in range(oldest_tick, latest_tick + 1)]
+    report = {'ticks': tick_indices, 'exploits': {}}
 
     for player, exploit, tick, flag_count in results:
         key = f'{player}-{exploit}'
-        if key not in report:
-            report[key] = {
+        if key not in report['exploits']:
+            report['exploits'][key] = {
                 'player': player,
                 'exploit': exploit,
                 'data': {
-                    'ticks': tick_indices,
                     'accepted': [0] * len(tick_indices)
                 }
             }
 
-        report[key]['data']['accepted'][tick_indices.index(tick)] = flag_count
-    
+        report['exploits'][key]['data']['accepted'][tick_indices.index(tick)] = flag_count
+
     return report
 
 

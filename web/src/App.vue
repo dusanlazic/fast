@@ -31,4 +31,6 @@ $progress-value-background-color: transparent;
 @import "../node_modules/bulma/sass/helpers/_all.sass";
 @import "../node_modules/bulma/sass/layout/_all.sass";
 @import "../node_modules/bulma/sass/utilities/_all.sass";
+
+@import "../node_modules/@creativebulma/bulma-tooltip/dist/bulma-tooltip.min.css";
 </style>

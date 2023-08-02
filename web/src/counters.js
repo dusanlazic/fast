@@ -1,6 +1,6 @@
 import api from '@/api.js'
 import { socket } from "@/socket";
-import { reactive, computed } from 'vue'
+import { reactive } from 'vue'
 
 
 socket.on('enqueue', function (msg) {
@@ -25,6 +25,7 @@ export const counters = reactive({
     received: 0,
     duplicates: 0,
     queued: 0,
+    exploits: new Set()
   },
   store: {
     queued: 0,
@@ -41,6 +42,7 @@ export const counters = reactive({
     this.store = data
   },
   increment(data) {
+    this.tick.exploits.add(`${data.player}/${data.exploit}`)
     this.tick.received += data.new + data.dup
     this.tick.duplicates += data.dup
     this.tick.queued += data.new
@@ -53,5 +55,6 @@ export const counters = reactive({
     this.tick.received = 0
     this.tick.duplicates = 0
     this.tick.queued = 0
+    this.tick.exploits.clear()
   }
 })
