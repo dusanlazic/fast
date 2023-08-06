@@ -14,50 +14,37 @@ def json_to_peewee_query(json_filter):
             return ~queries[0]
 
     field = json_filter["field"]
+    attribute = getattr(Flag, field)
+    conditions = []
+
+    if "matches" in json_filter:
+        condition = attribute.regexp(json_filter["matches"])
+        conditions.append(condition)
+
+    if "in" in json_filter:
+        condition = attribute.in_(json_filter["in"])
+        conditions.append(condition)
+
+    if "eq" in json_filter:
+        condition = attribute == json_filter["eq"]
+        conditions.append(condition)
     
-    if field == "value" and "regex" in json_filter:
-        regex = json_filter["regex"]
-        return Flag.value.regexp(regex)
-
-    elif field == "exploit" and "in" in json_filter:
-        in_ = json_filter.get("in")
-        conditions = [
-            ((Flag.player == player) & (Flag.exploit == exploit))
-            for player, exploit in (item.split('/') for item in in_)  # split 'player/exploit' into (player, exploit)
-        ]
-        return reduce(lambda x, y: x | y, conditions)
-
-    elif field == "tick":
-        eq = json_filter.get("eq", None)
-        ge = json_filter.get("ge", None)
-        le = json_filter.get("le", None)
-        if eq:
-            return Flag.tick == eq
-        if ge and le:
-            return Flag.tick.between(ge, le)
-        elif ge:
-            return Flag.tick >= ge
-        elif le:
-            return Flag.tick <= le
-
-    elif field == "target" and "in" in json_filter:
-        in_ = json_filter.get("in")
-        return Flag.exploit.in_(in_)
+    if "lt" in json_filter:
+        condition = attribute < json_filter["lt"]
+        conditions.append(condition)
     
-    elif field == "timestamp":
-        after = json_filter.get("after", None)
-        before = json_filter.get("before", None)
-        if after and before:
-            return Flag.timestamp.between(after, before)
-        elif after:
-            return Flag.timestamp >= after
-        elif le:
-            return Flag.timestamp <= le
-    
-    elif field == "status" and "in" in json_filter:
-        in_ = json_filter.get("in")
-        return Flag.status.in_(in_)
+    if "gt" in json_filter:
+        condition = attribute > json_filter["gt"]
+        conditions.append(condition)
 
-    if field == "response" and "regex" in json_filter:
-        regex = json_filter["regex"]
-        return Flag.value.regexp(regex)
+    if "ge" in json_filter and "le" in json_filter:
+        condition = attribute.between(json_filter["ge"], json_filter["le"])
+    else:
+        if "ge" in json_filter:
+            condition = attribute >= json_filter["ge"]
+            conditions.append(condition)
+        if "le" in json_filter:
+            condition = attribute <= json_filter["le"]
+            conditions.append(condition)
+
+    return reduce(lambda x, y: x & y, conditions)
