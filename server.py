@@ -1,9 +1,11 @@
 from gevent import monkey
 monkey.patch_all()
 import os
+import re
 import sys
 import json
 import yaml
+import time
 import logging
 import functools
 from base64 import b64decode
@@ -15,7 +17,9 @@ from flask_socketio import SocketIO, emit
 from flask_cors import CORS
 from apscheduler.schedulers.background import BackgroundScheduler
 from models import Flag
+from search import json_to_peewee_query
 from peewee import fn, IntegrityError, PostgresqlDatabase
+from playhouse.shortcuts import model_to_dict
 from database import db
 from util.log import logger
 from util.styler import TextStyler as st
@@ -258,6 +262,66 @@ def get_flagstore_stats():
 @basic
 def get_exploit_analytics():
     return generate_exploit_analytics()
+
+
+@app.route('/search', methods=['POST'])
+def search():
+    request_json = request.json
+
+    # Build search query
+    peewee_query = json_to_peewee_query(request_json['query'])
+    
+    # Select page
+    page = request_json.get('page', 1)
+    show = min(request_json.get('show', 10), 100)
+
+    # Select sorting
+    sort_fields = request_json.get("sort", [])
+    sort_expressions = [
+        getattr(Flag, item["field"]).desc() if item["direction"] == "desc" else getattr(Flag, item["field"])
+        for item in sort_fields
+    ]
+
+    # Run query
+    start = time.time()
+    results = [model_to_dict(flag) for flag in 
+        Flag.select()
+        .where(peewee_query)
+        .order_by(*sort_expressions)
+        .paginate(page, show)
+    ]
+    elapsed = time.time() - start
+
+    total = Flag.select().where(peewee_query).count()
+    total_pages = -(-total // show)
+
+    metadata = {
+        "paging": {
+            "current": page,
+            "last": total_pages,
+            "hasNext": page + 1 <= total_pages,
+            "hasPrev": page > 1
+        },
+        "results": {
+            "total": total,
+            "fetched": len(results),
+            "executionTime": elapsed
+        }
+    }
+
+    response = {
+        'results': results,
+        'metadata': metadata
+    }
+
+    # Hide flags
+    hide_flags = request_json.get('hide_flags', 'on')
+    if hide_flags and hide_flags.lower() == 'off':
+        return response
+
+    response_str = json.dumps(response, default=str)
+    redacted_response_str = re.sub(config['game']['flag_format'], '[REDACTED]', response_str)
+    return json.loads(redacted_response_str)
 
 
 @app.route('/config')
