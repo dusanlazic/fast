@@ -2,7 +2,7 @@
 import api from '@/api.js'
 import { socket } from "@/socket";
 import { Icon } from '@iconify/vue';
-import { reactive, computed } from 'vue';
+import { reactive, onMounted } from 'vue';
 import { Line } from 'vue-chartjs'
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Tooltip } from 'chart.js'
 
@@ -210,10 +210,13 @@ function getStatusElements(exploit) {
 }
 
 function getHitsList(exploit) {
-  return Array.from(exploit.currentTick.hits).sort().join('\n');
+  return Array.from(exploit.currentTick.hits).sort().join('\n') || 'No targets hit yet';
 }
 
-state.initialize()
+onMounted(() => {
+  state.initialize()
+  console.log('popeo se')
+})
 
 </script>
 
