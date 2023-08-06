@@ -118,7 +118,7 @@ def unauthorized():
 def basic(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        if config['server'].get('password'): 
+        if 'password' in config['server']: 
             return auth.login_required(func)(*args, **kwargs)
         else:
             return func(*args, **kwargs)
@@ -127,6 +127,9 @@ def basic(func):
 
 @socketio.on('connect')
 def authenticate_websocket():
+    if 'password' not in config['server']:
+        return True
+
     auth_header = request.headers.get('Authorization')
     if not auth_header:
         return False
