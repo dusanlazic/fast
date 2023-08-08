@@ -17,7 +17,7 @@ from flask_socketio import SocketIO, emit
 from flask_cors import CORS
 from apscheduler.schedulers.background import BackgroundScheduler
 from models import Flag
-from search import json_to_peewee_query
+from dsl import parse_query, build_query
 from peewee import fn, IntegrityError, PostgresqlDatabase
 from playhouse.shortcuts import model_to_dict
 from database import db
@@ -269,7 +269,8 @@ def search():
     request_json = request.json
 
     # Build search query
-    peewee_query = json_to_peewee_query(request_json['query'])
+    parsed_query = parse_query(request_json['query'])
+    peewee_query = build_query(parsed_query)
     
     # Select page
     page = request_json.get('page', 1)
