@@ -16,5 +16,14 @@ export default {
   async getExploitAnalytics() {
     const response = await client.get('/exploit-analytics')
     return response.data
+  },
+  async searchFlags(page, show, sort, query) {
+    const response = await client.post('/search', {
+      "page": page,
+      "show": show,
+      "sort": sort,
+      "query": query
+    })
+    return response.data
   }
 };
