@@ -1,3 +1,5 @@
+from gevent import monkey
+monkey.patch_all()
 import os
 import json
 import argparse
@@ -48,6 +50,7 @@ def reset():
         with open(RECOVERY_CONFIG_PATH) as file:
             backup = json.loads(file.read())
 
+        # TODO: Improve interactivity
         os.remove(RECOVERY_CONFIG_PATH)
         logger.info(
             "Tick number reset. If you changed your mind, you can still copy it:")
