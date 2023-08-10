@@ -11,8 +11,15 @@ gt = ['>', 'gt', 'over', 'above', 'greater than']
 lt = ['<', 'lt', 'under', 'below', 'less than']
 ge = ['>=', 'ge', 'min', 'not under', 'not below']
 le = ['<=', 'le', 'max', 'not over', 'not above']
+matches = ['matches', 'matching', 'regex']
+in_ = ['in', 'of']
+not_in = ['not in', 'not of']
+contains = ['contains', 'containing']
+starts = ['starts with', 'starting with', 'begins with', 'beginning with']
+ends = ['ends with', 'ending with']
 
 comparisons = eq + ne + gt + lt + ge + le
+wildcards = contains + starts + ends
 
 # Field
 field = Word(alphas, alphanums)
@@ -22,11 +29,12 @@ value = QuotedString(quoteChar='"', unquoteResults=True, escChar='\\') | Word(pr
 value_list = Group(Suppress('[') + DelimitedList(value, delim=',', allow_trailing_delim=True) + Suppress(']'), aslist=True)
 
 # Conditions
-matches_condition = Group(field + one_of(['matches'], caseless=True) + value)
+wildcard_condition = Group(field + one_of(wildcards, caseless=True) + value)
+matches_condition = Group(field + one_of(matches, caseless=True) + value)
 compare_condition = Group(field + one_of(comparisons, caseless=True) + value)
-in_condition = Group(field + one_of(['in', 'not in'], caseless=True) + value_list)
+in_condition = Group(field + one_of(in_ + not_in, caseless=True) + value_list)
 
-condition = matches_condition | compare_condition | in_condition
+condition = wildcard_condition | matches_condition | compare_condition | in_condition
 
 # Logical operators
 NOT = one_of(not_, caseless=True)
@@ -82,12 +90,18 @@ def build_query(tree):
             return (getattr(Flag, field) <= value)
         elif relation.lower() in ge:
             return (getattr(Flag, field) >= value)
-        elif relation.lower() == 'matches':
+        elif relation.lower() in matches:
             return (getattr(Flag, field).regexp(value))
-        elif relation.lower() == 'in':
+        elif relation.lower() in in_:
             return (getattr(Flag, field).in_(value))
-        elif relation.lower() == 'not in':
+        elif relation.lower() in not_in:
             return (getattr(Flag, field).not_in(value))
+        elif relation.lower() in contains:
+            return (getattr(Flag, field).contains(value))
+        elif relation.lower() in starts:
+            return (getattr(Flag, field).startswith(value))
+        elif relation.lower() in ends:
+            return (getattr(Flag, field).endswith(value))
     
     left, operator, right = tree
     if operator.lower() in and_:
