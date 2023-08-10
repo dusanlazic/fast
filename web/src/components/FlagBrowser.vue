@@ -29,9 +29,9 @@ const results = reactive({
 const searchFlags = async () => {
   loading.value = true
   const data = await api.searchFlags(
-    parseInt(page.value), 
-    parseInt(show.value), 
-    sort.value, 
+    parseInt(page.value),
+    parseInt(show.value),
+    sort.value,
     query.value === '' ? 'tick > 0' : query.value
   )
   Object.assign(results, data)
@@ -46,16 +46,6 @@ const nextPage = () => {
 const prevPage = () => {
   page.value = parseInt(page.value) - 1
   searchFlags()
-}
-
-const truncateEnd = (text, stop, clamp) => {
-  if (!text) return '';
-  return text.slice(0, stop) + (stop < text.length ? clamp || '...' : '');
-}
-
-const truncateStart = (text, stop, clamp) => {
-  if (!text) return '';
-  return (text.length > stop ? (clamp || '...') : '') + text.slice(-stop);
 }
 
 const toggleSort = (event) => {
@@ -74,6 +64,22 @@ const toggleSort = (event) => {
 
   searchFlags()
 }
+
+const clearSort = () => {
+  sort.value = []
+  searchFlags()
+}
+
+const truncateEnd = (text, stop, clamp) => {
+  if (!text) return '';
+  return text.slice(0, stop) + (stop < text.length ? clamp || '...' : '');
+}
+
+const truncateStart = (text, stop, clamp) => {
+  if (!text) return '';
+  return (text.length > stop ? (clamp || '...') : '') + text.slice(-stop);
+}
+
 
 const getSortIcon = (field) => {
   const index = sort.value.findIndex(s => s.field === field);
@@ -120,19 +126,22 @@ const getSortIcon = (field) => {
 
       <div class="level-right">
         <p class="level-item mr-1">
-          <button class="button is-small is-outlined pl-1" aria-label="Prev" :disabled="!results.metadata.paging.hasPrev" @click="prevPage">
+          <button class="button is-small is-outlined pl-1" aria-label="Prev" :disabled="!results.metadata.paging.hasPrev"
+            @click="prevPage">
             <Icon icon="ri:arrow-left-s-fill" class="is-size-4" inline="true" />
             Prev
           </button>
         </p>
         <p class="level-item">
-          <input class="input is-small has-text-centered" type="text" v-model="page" size="2" v-on:keyup.enter="searchFlags">
+          <input class="input is-small has-text-centered" type="text" v-model="page" size="2"
+            v-on:keyup.enter="searchFlags">
         </p>
         <p class="level-item is-size-7">
           <span>out of <strong>{{ results.metadata.paging.last }}</strong> pages</span>
         </p>
         <p class="level-item">
-          <button class="button is-small is-outlined pr-1" aria-label="Next" :disabled="!results.metadata.paging.hasNext" @click="nextPage">
+          <button class="button is-small is-outlined pr-1" aria-label="Next" :disabled="!results.metadata.paging.hasNext"
+            @click="nextPage">
             Next
             <Icon icon="ri:arrow-right-s-fill" class="is-size-4" inline="true" />
           </button>
@@ -174,6 +183,9 @@ const getSortIcon = (field) => {
         <th style="width: 20%;">
           <span @click="toggleSort($event)">response</span>
           <Icon :icon="getSortIcon('response')" inline="true" />
+          <span @click="clearSort">
+            <Icon icon="ri:delete-back-2-line" class="is-pulled-right mt-1" inline="true" />
+          </span>
         </th>
       </thead>
     </table>
@@ -215,7 +227,7 @@ const getSortIcon = (field) => {
   width: 100%;
 }
 
-.table th > span {
+.table th>span {
   cursor: pointer;
 }
 
