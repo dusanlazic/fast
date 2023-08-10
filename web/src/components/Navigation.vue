@@ -3,6 +3,7 @@ import { reactive } from "vue";
 import { Icon } from '@iconify/vue'
 import Dashboard from './Dashboard.vue'
 import FlagBrowser from "./FlagBrowser.vue";
+import ManualSubmit from "./ManualSubmit.vue";
 
 const routes = {
   '': {
@@ -14,6 +15,11 @@ const routes = {
     title: 'Browse flags',
     iconInactive: 'ri:flag-line',
     iconActive: 'ri:flag-fill',
+  },
+  'submit': {
+    title: 'Manual submit',
+    iconInactive: 'ri:send-plane-line',
+    iconActive: 'ri:send-plane-fill',
   },
 }
 
@@ -57,6 +63,9 @@ const navigation = reactive({
   <div v-show="navigation.path === 'browse'">
     <FlagBrowser />
   </div>
+  <div v-show="navigation.path === 'submit'">
+    <ManualSubmit />
+  </div>
 </template>
 
 <style>
@@ -67,6 +76,7 @@ const navigation = reactive({
   align-items: center;
   color: #b5b5b5;
   cursor: pointer;
+  z-index: 2;
 }
 
 .navigation-link:hover {

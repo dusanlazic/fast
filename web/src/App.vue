@@ -20,7 +20,7 @@ import Navigation from './components/Navigation.vue'
   position: fixed;
   top: 0px;
   left: 0px;
-  z-index: 1;
+  z-index: 3;
 }
 
 .hero-body {
