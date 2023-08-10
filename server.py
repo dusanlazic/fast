@@ -154,8 +154,6 @@ def enqueue():
     exploit = request.json['exploit']
     target = request.json['target']
     player = request.json['player']
-    timestamp = request.json.get('timestamp', None)
-    tick = int((datetime.fromtimestamp(timestamp) - server_start).total_seconds() // config['game']['tick_duration']) if timestamp else tick_number
 
     new_flags = []
     duplicate_flags = []
@@ -164,7 +162,7 @@ def enqueue():
         try:
             with db.atomic():
                 Flag.create(value=flag_value, exploit=exploit, target=target, 
-                            tick=tick, player=player, status='queued')
+                            tick=tick_number, player=player, status='queued')
             new_flags.append(flag_value)
         except IntegrityError:
             duplicate_flags.append(flag_value)
@@ -180,6 +178,45 @@ def enqueue():
         'player': player,
         'target': target,
         'exploit': exploit
+    })
+
+    return {
+        'duplicates': duplicate_flags,
+        'new':  new_flags
+    }
+
+
+@app.route('/enqueue-fallback', methods=['POST'])
+@basic
+def enqueue_fallback():
+    flags = request.get_json()
+
+    new_flags = []
+    duplicate_flags = []
+
+    for flag in flags:
+        flag_value = flag['flag']
+        exploit = flag['exploit']
+        target = flag['target']
+        player = flag['player']
+        timestamp = flag.get('timestamp', None)
+        tick = int((datetime.fromtimestamp(timestamp) - server_start).total_seconds() // config['game']['tick_duration']) if timestamp else tick_number
+
+        try:
+            with db.atomic():
+                Flag.create(value=flag_value, exploit=exploit, target=target, 
+                            tick=tick, player=player, status='queued')
+            new_flags.append(flag_value)
+        except IntegrityError:
+            duplicate_flags.append(flag_value)
+    
+    if new_flags:
+        logger.success(f"{st.bold(player)} sent " +
+                    (f"{st.bold(1)} flag " if len(new_flags) == 1 else f"{st.bold(len(new_flags))} flags from fallback flagstore. 🚩"))
+    
+    socketio.emit('enqueue_fallback', {
+        'new': len(new_flags),
+        'dup': len(duplicate_flags)
     })
 
     return {
@@ -266,9 +303,11 @@ def get_exploit_analytics():
 
 @app.route('/search', methods=['POST'])
 def search():
+    # TODO: Validate request
     request_json = request.json
 
     # Build search query
+    # TODO: Validate query and handle errors
     parsed_query = parse_query(request_json['query'])
     peewee_query = build_query(parsed_query)
     
@@ -349,6 +388,7 @@ def trigger_submit():
         'message': 'Flags submitted.'
     }
 
+# TODO: Manual flag enqueuing, submission and triggering submission
 
 @app.route('/')
 @basic
@@ -392,14 +432,14 @@ def submitter_wrapper(submit):
 
     with db.atomic():
         if accepted:
-            to_accept = Flag.select().where(Flag.value.in_([flag for flag in accepted]))
+            to_accept = Flag.select().where(Flag.value.in_([flag for flag in accepted]))  # TODO: What is this list comperhension for?
             for flag in to_accept:
                 flag.status = 'accepted'
                 flag.response = accepted[flag.value]
             Flag.bulk_update(to_accept, fields=[Flag.status, Flag.response])
 
         if rejected:
-            to_reject = Flag.select().where(Flag.value.in_([flag for flag in rejected]))
+            to_reject = Flag.select().where(Flag.value.in_([flag for flag in rejected]))  # TODO: What is this list comperhension for?
             for flag in to_reject:
                 flag.status = 'rejected'
                 flag.response = rejected[flag.value]

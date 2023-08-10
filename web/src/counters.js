@@ -7,6 +7,10 @@ socket.on('enqueue', function (msg) {
   counters.increment(msg)
 })
 
+socket.on('enqueue_fallback', function (msg) {
+  counters.increment_fallback(msg)
+})
+
 socket.on('submitStart', function () {
   counters.store.submitting = true
 })
@@ -43,6 +47,12 @@ export const counters = reactive({
   },
   increment(data) {
     this.tick.exploits.add(`${data.player}/${data.exploit}`)
+    this.tick.received += data.new + data.dup
+    this.tick.duplicates += data.dup
+    this.tick.queued += data.new
+    this.store.queued += data.new
+  },
+  increment_fallback(data) {
     this.tick.received += data.new + data.dup
     this.tick.duplicates += data.dup
     this.tick.queued += data.new

@@ -15,9 +15,6 @@ from util.log import logger, log_error, log_warning
 exploit_name = ''
 handler: SubmitClient = None
 
-# TODO: Handle connection failure and provide a fallback way of
-# keeping the flags if the server is down.
-
 
 def main(args):
     global exploit_name, handler

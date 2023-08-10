@@ -98,24 +98,25 @@ class SubmitClient(object):
             return response.json()
 
     def enqueue_from_fallback(self, flags):
-        for flag in flags:
-            payload = json.dumps({
-                'flags': [flag.value],
+        payload = json.dumps([
+            {
+                'flag': flag.value,
                 'exploit': flag.exploit,
                 'target': flag.target,
                 'player': self.connect['player'],
                 'timestamp': flag.timestamp.timestamp()
-            })
-            try:
-                response = requests.post(
-                    f'{self.url}/enqueue', data=payload, headers=headers)
-                response.raise_for_status()
-            except Exception:
-                logger.error("Server is unavailable. Skipping...")
-                break
-            else:
-                with fallbackdb.atomic():
-                    FallbackFlag.update(status='forwarded').where(FallbackFlag.value == flag.value).execute()
+            } for flag in flags
+        ])
+
+        try:
+            response = requests.post(
+                f'{self.url}/enqueue-fallback', data=payload, headers=headers)
+            response.raise_for_status()
+        except Exception:
+            logger.error("Server is unavailable. Skipping...")
+        else:
+            with fallbackdb.atomic():
+                FallbackFlag.update(status='forwarded').where(FallbackFlag.value.in_([flag.value for flag in flags])).execute()
 
     def trigger_submit(self):
         payload = json.dumps({
