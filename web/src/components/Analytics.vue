@@ -215,7 +215,6 @@ function getHitsList(exploit) {
 
 onMounted(() => {
   state.initialize()
-  console.log('popeo se')
 })
 
 </script>

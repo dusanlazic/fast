@@ -49,10 +49,12 @@ const prevPage = () => {
 }
 
 const truncateEnd = (text, stop, clamp) => {
-  return text.slice(0, stop) + (stop < text.length ? clamp || '...' : '')
+  if (!text) return '';
+  return text.slice(0, stop) + (stop < text.length ? clamp || '...' : '');
 }
 
 const truncateStart = (text, stop, clamp) => {
+  if (!text) return '';
   return (text.length > stop ? (clamp || '...') : '') + text.slice(-stop);
 }
 

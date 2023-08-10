@@ -1,4 +1,4 @@
-from peewee import Model, Proxy, PostgresqlDatabase, SqliteDatabase
+from peewee import Model, Proxy, SqliteDatabase
 
 db = Proxy()
 
