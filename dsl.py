@@ -11,6 +11,7 @@ gt = ['>', 'gt', 'over', 'above', 'greater than']
 lt = ['<', 'lt', 'under', 'below', 'less than']
 ge = ['>=', 'ge', 'min', 'not under', 'not below']
 le = ['<=', 'le', 'max', 'not over', 'not above']
+between = ['between']
 matches = ['matches', 'matching', 'regex']
 in_ = ['in', 'of']
 not_in = ['not in', 'not of']
@@ -27,14 +28,16 @@ field = Word(alphas, alphanums)
 # Values
 value = QuotedString(quoteChar='"', unquoteResults=True, escChar='\\') | Word(printables, excludeChars='[](),')
 value_list = Group(Suppress('[') + DelimitedList(value, delim=',', allow_trailing_delim=True) + Suppress(']'), aslist=True)
+value_range = Group(Suppress('[') + value + Suppress(',') + value + Suppress(']')) | Group(value + Suppress(CaselessKeyword('and')) + value)
 
 # Conditions
 wildcard_condition = Group(field + one_of(wildcards, caseless=True) + value)
 matches_condition = Group(field + one_of(matches, caseless=True) + value)
 compare_condition = Group(field + one_of(comparisons, caseless=True) + value)
+between_condition = Group(field + one_of(between, caseless=True) + value_range)
 in_condition = Group(field + one_of(in_ + not_in, caseless=True) + value_list)
 
-condition = wildcard_condition | matches_condition | compare_condition | in_condition
+condition = wildcard_condition | matches_condition | compare_condition | between_condition | in_condition
 
 # Logical operators
 NOT = one_of(not_, caseless=True)
@@ -78,30 +81,34 @@ def build_query(tree):
     
     if len(tree) == 3 and isinstance(tree[0], str):
         field, relation, value = tree
-        if relation.lower() in eq:
+        rel = relation.lower()
+
+        if rel in eq:
             return (getattr(Flag, field) == value)
-        elif relation.lower() in ne:
+        elif rel in ne:
             return (getattr(Flag, field) != value)
-        elif relation.lower() in lt:
+        elif rel in lt:
             return (getattr(Flag, field) < value)
-        elif relation.lower() in gt:
+        elif rel in gt:
             return (getattr(Flag, field) > value)
-        elif relation.lower() in le:
+        elif rel in le:
             return (getattr(Flag, field) <= value)
-        elif relation.lower() in ge:
+        elif rel in ge:
             return (getattr(Flag, field) >= value)
-        elif relation.lower() in matches:
+        elif rel in matches:
             return (getattr(Flag, field).regexp(value))
-        elif relation.lower() in in_:
+        elif rel in in_:
             return (getattr(Flag, field).in_(value))
-        elif relation.lower() in not_in:
+        elif rel in not_in:
             return (getattr(Flag, field).not_in(value))
-        elif relation.lower() in contains:
+        elif rel in contains:
             return (getattr(Flag, field).contains(value))
-        elif relation.lower() in starts:
+        elif rel in starts:
             return (getattr(Flag, field).startswith(value))
-        elif relation.lower() in ends:
+        elif rel in ends:
             return (getattr(Flag, field).endswith(value))
+        elif rel in between:
+            return (getattr(Flag, field).between(*value))
     
     left, operator, right = tree
     if operator.lower() in and_:
