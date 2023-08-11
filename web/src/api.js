@@ -17,12 +17,25 @@ export default {
     const response = await client.get('/exploit-analytics')
     return response.data
   },
+  async getFlagFormat() {
+    const response = await client.get('/flag-format')
+    return response.data
+  },
   async searchFlags(page, show, sort, query) {
     const response = await client.post('/search', {
       "page": page,
       "show": show,
       "sort": sort,
-      "query": query
+      "query": query,
+      "hide_flags": 'off'
+    })
+    return response.data
+  },
+  async submitFlags(flags, action, player) {
+    const response = await client.post('/enqueue-manual', {
+      "flags": flags,
+      "action": action,
+      "player": player
     })
     return response.data
   }

@@ -1,6 +1,6 @@
 <script setup>
-import { Icon } from '@iconify/vue'
 import { reactive, ref } from 'vue';
+import { Icon } from '@iconify/vue'
 import api from '@/api.js'
 
 const query = ref("")
@@ -32,10 +32,14 @@ const searchFlags = async () => {
     parseInt(page.value),
     parseInt(show.value),
     sort.value,
-    query.value === '' ? 'tick > 0' : query.value
+    query.value === '' ? 'tick >= 0' : query.value
   )
   Object.assign(results, data)
   loading.value = false
+}
+
+const resetPage = () => {
+  page.value = 1
 }
 
 const nextPage = () => {
@@ -80,7 +84,6 @@ const truncateStart = (text, stop, clamp) => {
   return (text.length > stop ? (clamp || '...') : '') + text.slice(-stop);
 }
 
-
 const getSortIcon = (field) => {
   const index = sort.value.findIndex(s => s.field === field);
   if (index === -1) {
@@ -99,7 +102,7 @@ const getSortIcon = (field) => {
     <div class="field">
       <div class="control is-expanded">
         <input class="input" type="text" placeholder="target == 10.10.4.3 and tick > 94" v-model="query"
-          v-on:keyup.enter="searchFlags">
+          v-on:keyup.enter="resetPage(); searchFlags()">
       </div>
     </div>
 
@@ -110,7 +113,7 @@ const getSortIcon = (field) => {
         </p>
         <p class="level-item">
         <div class="select is-small">
-          <select v-model="show" @change="searchFlags">
+          <select v-model="show" @change="resetPage(); searchFlags()">
             <option>10</option>
             <option>25</option>
             <option>50</option>
@@ -149,8 +152,8 @@ const getSortIcon = (field) => {
       </div>
     </nav>
 
-    <progress v-if="loading" class="progress is-loader"></progress>
     <table class="table is-fullwidth is-size-6">
+      <progress v-if="loading" class="progress is-loader"></progress>
       <thead>
         <th style="width: 7%;">
           <span @click="toggleSort($event)">tick</span>

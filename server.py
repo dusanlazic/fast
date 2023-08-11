@@ -8,6 +8,7 @@ import yaml
 import time
 import logging
 import functools
+from itertools import chain
 from base64 import b64decode
 from importlib import import_module
 from datetime import datetime, timedelta
@@ -225,6 +226,73 @@ def enqueue_fallback():
     }
 
 
+@app.route('/enqueue-manual', methods=['POST'])
+@basic
+def enqueue_manual():
+    flags = request.json['flags']
+    player = request.json.get('player') or 'anon'
+    action = request.json.get('action') or 'submit'
+
+    if action == 'enqueue':
+        new_flags = []
+        duplicate_flags = []
+
+        for flag_value in flags:
+            try:
+                with db.atomic():
+                    new_flag = Flag.create(value=flag_value, tick=tick_number, player=player,
+                    exploit='manual', target='unknown', status='queued')
+                new_flags.append(new_flag)
+            except IntegrityError:
+                duplicate_flags.append(flag_value)
+        
+        return [
+            {
+                'status': flag.status, 
+                'value': flag.value
+            } for flag in new_flags
+        ] + [
+            {
+                'status': 'duplicate',
+                'value': value
+            } for value in duplicate_flags
+        ]
+    elif action == 'submit':
+        accepted, rejected = submit_func(flags)
+        accepted_flags = []
+        rejected_flags = []
+
+        for value, response in accepted.items():
+            try:
+                with db.atomic():
+                    flag = Flag.create(value=value, tick=tick_number, player=player, 
+                    exploit='manual', target='unknown', status='accepted', response=response)
+                accepted_flags.append(flag)
+            except IntegrityError:
+                pass
+        
+        for value, response in rejected.items():
+            try:
+                with db.atomic():
+                    flag = Flag.create(value=value, tick=tick_number, player=player, 
+                    exploit='manual', target='unknown', status='rejected', response=response)
+                rejected_flags.append(flag)
+            except IntegrityError:
+                pass
+        
+        return [
+            {
+                'status': flag.status, 
+                'value': flag.value,
+                'response': flag.response
+            } for flag in chain(accepted_flags, rejected_flags)
+        ]
+    else:
+        return {
+            'message': 'Vulnerability reported.'
+        }
+
+
 @app.route('/vuln-report', methods=['POST'])
 @basic
 def vulnerability_report():
@@ -377,6 +445,14 @@ def get_config():
     return config
 
 
+@app.route('/flag-format')
+@basic
+def get_flag_format():
+    return {
+        "format": config['game']['flag_format']
+    }
+
+
 @app.route('/trigger-submit', methods=['POST'])
 @basic
 def trigger_submit():
@@ -388,7 +464,6 @@ def trigger_submit():
         'message': 'Flags submitted.'
     }
 
-# TODO: Manual flag enqueuing, submission and triggering submission
 
 @app.route('/')
 @basic
@@ -432,14 +507,14 @@ def submitter_wrapper(submit):
 
     with db.atomic():
         if accepted:
-            to_accept = Flag.select().where(Flag.value.in_([flag for flag in accepted]))  # TODO: What is this list comperhension for?
+            to_accept = Flag.select().where(Flag.value.in_(list(accepted.keys())))
             for flag in to_accept:
                 flag.status = 'accepted'
                 flag.response = accepted[flag.value]
             Flag.bulk_update(to_accept, fields=[Flag.status, Flag.response])
 
         if rejected:
-            to_reject = Flag.select().where(Flag.value.in_([flag for flag in rejected]))  # TODO: What is this list comperhension for?
+            to_reject = Flag.select().where(Flag.value.in_(list(rejected.keys())))
             for flag in to_reject:
                 flag.status = 'rejected'
                 flag.response = rejected[flag.value]
@@ -499,7 +574,7 @@ def generate_exploit_analytics():
     oldest_tick = max(0, latest_tick - tick_window + 1)  # add 1 to ignore -11th tick
 
     query = Flag.select(Flag.player, Flag.exploit, Flag.tick, fn.COUNT(Flag.id).alias('flag_count')) \
-                .where((Flag.tick >= oldest_tick) & (Flag.tick <= latest_tick) & (Flag.status == 'accepted')) \
+                .where((Flag.tick >= oldest_tick) & (Flag.tick <= latest_tick) & (Flag.status == 'accepted') & (Flag.exploit != 'manual')) \
                 .group_by(Flag.player, Flag.exploit, Flag.tick)
     results = [(result.player, result.exploit, result.tick, result.flag_count) for result in query]
 

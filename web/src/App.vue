@@ -35,6 +35,8 @@ $family-primary: 'Fira Code', monospace;
 $body-background-color:  hsl(0, 0%, 96%);
 
 $radius: 0px;
+$radius-small: 0px;
+$radius-large: 0px;
 $progress-border-radius: 0px;
 $progress-bar-background-color: transparent;
 $progress-value-background-color: transparent;
@@ -45,6 +47,7 @@ $table-cell-border-width: 0px;
 $table-head-cell-border-width: 0 0 1px;
 $table-head-cell-color: #a1a1a1;
 $table-cell-padding: 0.25em 0.75em;
+$input-placeholder-color: #707070;
 
 @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;500&display=swap');
 
