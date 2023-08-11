@@ -20,11 +20,10 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from models import Flag
 from dsl import parse_query, build_query
 from peewee import fn, IntegrityError, PostgresqlDatabase
-from playhouse.shortcuts import model_to_dict
 from database import db
 from util.log import logger
 from util.styler import TextStyler as st
-from util.helpers import truncate, deep_update
+from util.helpers import truncate, deep_update, flag_model_to_dict
 from util.validation import validate_data, validate_delay, server_yaml_schema
 
 app = Flask(__name__, static_url_path='')
@@ -392,7 +391,7 @@ def search():
 
     # Run query
     start = time.time()
-    results = [model_to_dict(flag) for flag in 
+    results = [flag_model_to_dict(flag) for flag in 
         Flag.select()
         .where(peewee_query)
         .order_by(*sort_expressions)
@@ -417,19 +416,10 @@ def search():
         }
     }
 
-    response = {
+    return {
         'results': results,
         'metadata': metadata
     }
-
-    # Hide flags
-    hide_flags = request_json.get('hide_flags', 'on')
-    if hide_flags and hide_flags.lower() == 'off':
-        return response
-
-    response_str = json.dumps(response, default=str)
-    redacted_response_str = re.sub(config['game']['flag_format'], '[REDACTED]', response_str)
-    return json.loads(redacted_response_str)
 
 
 @app.route('/config')

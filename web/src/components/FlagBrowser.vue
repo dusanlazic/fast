@@ -206,7 +206,7 @@ const getSortIcon = (field) => {
     <tbody class="has-text-grey-dark">
       <tr v-for="result in results.results">
         <td>{{ result.tick }}</td>
-        <td>{{ result.timestamp.split(" ")[1].split(".")[0] }}</td>
+        <td class="has-tooltip-arrow" :data-tooltip="result.timestamp">{{ result.timestamp.split("T")[1].split(".")[0] }}</td>
         <td>{{ result.player }}</td>
         <td>{{ result.exploit }}</td>
         <td>{{ result.target }}</td>

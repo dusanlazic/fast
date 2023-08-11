@@ -1,4 +1,6 @@
+from pytz import utc
 from datetime import datetime, timedelta
+from playhouse.shortcuts import model_to_dict
 
 
 def truncate(string, length):
@@ -25,3 +27,10 @@ def deep_update(left, right):
         else:
             left[key] = right[key]
     return left
+
+
+def flag_model_to_dict(instance):
+    flag_dict = model_to_dict(instance)
+    flag_dict['timestamp'] = instance.timestamp.astimezone(utc).isoformat()
+
+    return flag_dict

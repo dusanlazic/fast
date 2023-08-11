@@ -8,7 +8,7 @@ class Flag(BaseModel):
     player = CharField()
     tick = IntegerField()
     target = CharField()
-    timestamp = DateTimeField(default=datetime.now)
+    timestamp = DateTimeField(default=datetime.utcnow)
     status = CharField(constraints=[Check("status IN ('queued', 'accepted', 'rejected')")])
     response = CharField(null=True)
 

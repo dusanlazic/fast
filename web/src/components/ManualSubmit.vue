@@ -23,7 +23,6 @@ const submitFlags = async (action) => {
     action,
     player.value || 'anon',
   )
-  console.log(data)
   submissionResponse.value = data
   loading.value = false
 }
@@ -35,7 +34,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <textarea class="textarea is-small" rows="10" placeholder="Paste text containg one or more flags" v-model="flagsInput"
+  <textarea class="textarea is-small" rows="10" placeholder="Paste text containing one or more flags" v-model="flagsInput"
     @input="flagsInput = $event.target.value; updateMatches()"></textarea>
 
   <div class="mt-4 mb-5">
