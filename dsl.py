@@ -1,5 +1,31 @@
+from datetime import datetime, timedelta
 from models import Flag
 from pyparsing import *
+
+# Parsing formats
+def parse_timedelta(tokens):
+    tokens = tokens[0]
+    value = int(tokens[0])
+    unit = tokens[1].lower()
+    if unit in seconds:
+        return datetime.now() - timedelta(seconds=value)
+    if unit in minutes:
+        return datetime.now() - timedelta(minutes=value)
+    if unit in hours:
+        return datetime.now() - timedelta(hours=value)
+
+def parse_time(tokens):
+    tokens = tokens[0]
+    hour = int(tokens[0])
+    minute = int(tokens[1])
+    second = int(tokens[2]) if len(tokens) > 2 else 0
+
+    return datetime.now().replace(
+        hour=hour,
+        minute=minute,
+        second=second,
+        microsecond=0
+    )
 
 # Symbols
 and_ = ['and', '&', '&&', ',']
@@ -9,8 +35,8 @@ eq = ['==', '=', 'equals', 'eq', 'is']
 ne = ['!=', '<>', 'not equals', 'ne', 'is not']
 gt = ['>', 'gt', 'over', 'above', 'greater than']
 lt = ['<', 'lt', 'under', 'below', 'less than']
-ge = ['>=', 'ge', 'min', 'not under', 'not below']
-le = ['<=', 'le', 'max', 'not over', 'not above']
+ge = ['>=', 'ge', 'min', 'not under', 'not below', 'after']
+le = ['<=', 'le', 'max', 'not over', 'not above', 'before']
 between = ['between']
 matches = ['matches', 'matching', 'regex']
 in_ = ['in', 'of']
@@ -18,9 +44,13 @@ not_in = ['not in', 'not of']
 contains = ['contains', 'containing']
 starts = ['starts with', 'starting with', 'begins with', 'beginning with']
 ends = ['ends with', 'ending with']
+seconds = ['s', 'sec', 'second', 'seconds']
+minutes = ['m', 'min', 'mins', 'minute', 'minutes']
+hours = ['h', 'hour', 'hours']
 
 comparisons = eq + ne + gt + lt + ge + le
 wildcards = contains + starts + ends
+time_units = seconds + minutes + hours
 
 # Field
 field = Word(alphas, alphanums)
@@ -28,12 +58,18 @@ field = Word(alphas, alphanums)
 # Values
 value = QuotedString(quoteChar='"', unquoteResults=True, escChar='\\') | Word(printables, excludeChars='[](),')
 value_list = Group(Suppress('[') + DelimitedList(value, delim=',', allow_trailing_delim=True) + Suppress(']'), aslist=True)
-value_range = Group(Suppress('[') + value + Suppress(',') + value + Suppress(']')) | Group(value + Suppress(CaselessKeyword('and')) + value)
+value_timedelta = Group(Word(nums) + one_of(time_units, caseless=True) + Suppress(CaselessKeyword('ago'))).set_parse_action(parse_timedelta)
+value_time = Group(Regex('2[0-3]|[01]?\d') + Suppress(one_of(': . - ')) + Regex('[0-5]?\d') + Optional(Suppress(one_of(': . - ')) + Regex('[0-5]?\d'))).set_parse_action(parse_time)
+value_instant = value_time | value_timedelta
+value_range = Group(Suppress('[') + value_instant + Suppress(',') + value_instant + Suppress(']')) | \
+              Group(value_instant + Suppress(CaselessKeyword('and')) + value_instant) | \
+              Group(Suppress('[') + value + Suppress(',') + value + Suppress(']')) | \
+              Group(value + Suppress(CaselessKeyword('and')) + value)
 
 # Conditions
 wildcard_condition = Group(field + one_of(wildcards, caseless=True) + value)
 matches_condition = Group(field + one_of(matches, caseless=True) + value)
-compare_condition = Group(field + one_of(comparisons, caseless=True) + value)
+compare_condition = Group(field + one_of(comparisons, caseless=True) + (value_instant | value))
 between_condition = Group(field + one_of(between, caseless=True) + value_range)
 in_condition = Group(field + one_of(in_ + not_in, caseless=True) + value_list)
 

@@ -1,4 +1,3 @@
-from pytz import utc
 from datetime import datetime, timedelta
 from playhouse.shortcuts import model_to_dict
 
@@ -31,6 +30,6 @@ def deep_update(left, right):
 
 def flag_model_to_dict(instance):
     flag_dict = model_to_dict(instance)
-    flag_dict['timestamp'] = instance.timestamp.astimezone(utc).isoformat()
+    flag_dict['timestamp'] = instance.timestamp.isoformat()
 
     return flag_dict
