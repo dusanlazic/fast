@@ -45,7 +45,7 @@ def main(args):
         for target in args.targets
     ]
 
-    if prepare_func:
+    if prepare_func and (args.partitioned is None or args.partitioned == -1):
         prepare_func()
 
     for t in threads:
@@ -55,7 +55,7 @@ def main(args):
         logger.error(
             f"{st.bold(exploit_name)} took longer than {st.bold(str(args.timeout))} seconds for {st.bold(t.name)}. ⌛")
 
-    if cleanup_func:
+    if cleanup_func and (args.partitioned is None or args.partitioned == 1):
         cleanup_func()
 
 
@@ -158,6 +158,8 @@ if __name__ == "__main__":
                         help="Run cleanup command from the module after attacking")
     parser.add_argument("--timeout", type=int, default=30,
                         help="Optional timeout for exploit in seconds")
+    parser.add_argument("--partitioned", type=int, nargs='?', choices=[-1, 0, 1], default=None,
+                        help="Run in partitioned mode to skip running prepare, cleanup or both functions.")
 
     args = parser.parse_args()
     main(args)

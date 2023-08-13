@@ -123,6 +123,15 @@ exploit_schema = {
             "type": "number",
             "exclusiveMinimum": 0
         },
+        "partition": {
+            "type": "object",
+            "properties": {
+                "count": {"type": "integer", "minimum": 1},
+                "size": {"type": "integer", "minimum": 1},
+                "wait": {"type": "number", "exclusiveMinimum": 0}
+            },
+            "required": ["wait"]
+        },
         "targets": {
             "type": "array",
             "items": {
@@ -186,6 +195,7 @@ server_schema = {
     "additionalProperties": False,
 }
 
+
 database_schema = {
     "type": "object",
     "properties": {
@@ -197,6 +207,7 @@ database_schema = {
     },
     "additionalProperties": False,
 }
+
 
 server_yaml_schema = {
     "type": "object",

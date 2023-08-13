@@ -1,3 +1,4 @@
+from collections import namedtuple
 from peewee import CharField, DateTimeField, IntegerField, Check
 from datetime import datetime
 from database import BaseModel, FallbackBaseModel
@@ -21,8 +22,10 @@ class FallbackFlag(FallbackBaseModel):
     status = CharField(constraints=[Check("status IN ('pending', 'forwarded')")])
 
 
+Partition = namedtuple('Partition', 'count size wait')
+
 class ExploitDetails:
-    def __init__(self, name, targets, module=None, run=None, prepare=None, cleanup=None, timeout=None, env=None, delay=None):
+    def __init__(self, name, targets, module=None, run=None, prepare=None, cleanup=None, timeout=None, env=None, delay=None, partition=None, partitioned=None):
         self.name = name
         self.targets = targets
         self.module = module
@@ -32,3 +35,5 @@ class ExploitDetails:
         self.timeout = timeout
         self.env = env
         self.delay = delay
+        self.partition = partition
+        self.partitioned = partitioned

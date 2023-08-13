@@ -4,9 +4,10 @@ import time
 import hashlib
 import threading
 import subprocess
+from copy import deepcopy
 from itertools import product
 from database import fallbackdb
-from models import ExploitDetails, FallbackFlag
+from models import ExploitDetails, FallbackFlag, Partition
 from handler import SubmitClient
 from util.styler import TextStyler as st
 from util.helpers import seconds_from_now
@@ -61,7 +62,14 @@ def run_exploits():
         logger.info(f'No exploits defined in {st.bold("fast.yaml")}. Skipped.')
         return
 
+    exploits_to_run = []
     for exploit in exploits:
+        if not exploit.partition:
+            exploits_to_run.append(exploit)
+        else:
+            exploits_to_run.extend(partition_exploit(exploit))
+
+    for exploit in exploits_to_run:
         threading.Thread(target=run_exploit, args=(exploit,)).start()
 
 
@@ -78,16 +86,19 @@ def run_exploit(exploit):
         runner_command.extend(['--cleanup', exploit.cleanup])
     if exploit.timeout:
         runner_command.extend(['--timeout', str(exploit.timeout)])
+    if exploit.partitioned is not None:
+        runner_command.extend(['--partitioned', str(exploit.partitioned)])
     if exploit.delay:
         time.sleep(exploit.delay)
 
+    parts = f" (part {exploit.part_num}/{exploit.part_total})" if hasattr(exploit, 'part_num') else ""
     logger.info(
-        f'Running {st.bold(exploit.name)} at {st.bold(len(exploit.targets))} target{"s" if len(exploit.targets) > 1 else ""}...')
+        f'Running {st.bold(exploit.name)} {parts} at {st.bold(len(exploit.targets))} target{"s" if len(exploit.targets) > 1 else ""}...')
 
     subprocess.run(runner_command, text=True, env={
                    **exploit.env, **os.environ})
 
-    logger.info(f'{st.bold(exploit.name)} finished.')
+    logger.info(f'{st.bold(exploit.name)}{parts} finished.')
 
 
 def enqueue_from_fallback():
@@ -158,8 +169,52 @@ def parse_exploit_entry(entry):
     timeout = entry.get('timeout')
     env = entry.get('env') or {}
     delay = entry.get('delay')
+    partition = Partition(
+        entry['partition'].get('count'),
+        entry['partition'].get('size'),
+        entry['partition'].get('wait')
+    ) if entry.get('partition') else None
 
-    return ExploitDetails(name, targets, module, run, prepare, cleanup, timeout, env, delay)
+    return ExploitDetails(name, targets, module, run, prepare, cleanup, timeout, env, delay, partition)
+
+
+def partition_exploit(exploit):
+    if exploit.partition.count:
+        target_partitions = partition_by_count(exploit.targets, exploit.partition.count)
+    elif exploit.partition.size:
+        target_partitions = partition_by_size(exploit.targets, exploit.partition.size)
+    else:
+        logger.warning(f'Partition {st.bold("size")} or {st.bold("count")} must be specified when partitioning targets. Fix configuration for {st.bold(exploit.name or exploit.module)}.')
+        return [exploit]
+    
+    exploits = []
+    for i, targets in enumerate(target_partitions):
+        new_exploit = deepcopy(exploit)
+        new_exploit.targets = targets
+        new_exploit.delay = (exploit.delay or 0) + i * exploit.partition.wait
+        new_exploit.partition = None
+        new_exploit.partitioned = 0
+        new_exploit.part_num = i + 1
+        new_exploit.part_total = len(target_partitions)
+        exploits.append(new_exploit)
+    
+    exploits[0].partitioned = -1
+    exploits[-1].partitioned = 1 if len(exploits) > 1 else None
+
+    return exploits
+
+
+def partition_by_size(targets, size):
+    return [targets[i:i + size] for i in range(0, len(targets), size)]
+
+
+def partition_by_count(targets, count):
+    size = len(targets) // count
+    remainder = len(targets) % count
+    partitions = [targets[i * size : (i + 1) * size] for i in range(count)]
+    for i in range(remainder):
+        partitions[i].append(targets[count * size + i])
+    return partitions
 
 
 def load_config():
