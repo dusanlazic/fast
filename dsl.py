@@ -56,7 +56,7 @@ time_units = seconds + minutes + hours
 field = Word(alphas, alphanums)
 
 # Values
-value = QuotedString(quoteChar='"', unquoteResults=True, escChar='\\') | Word(printables, excludeChars='[](),')
+value = QuotedString(quoteChar='"', unquoteResults=True, escChar='\\') | QuotedString(quoteChar="'", unquoteResults=True, escChar='\\') | Word(printables, excludeChars='[](),')
 value_list = Group(Suppress('[') + DelimitedList(value, delim=',', allow_trailing_delim=True) + Suppress(']'), aslist=True)
 value_timedelta = Group(Word(nums) + one_of(time_units, caseless=True) + Suppress(CaselessKeyword('ago'))).set_parse_action(parse_timedelta)
 value_time = Group(Regex('2[0-3]|[01]?\d') + Suppress(one_of(': . - ')) + Regex('[0-5]?\d') + Optional(Suppress(one_of(': . - ')) + Regex('[0-5]?\d'))).set_parse_action(parse_time)
