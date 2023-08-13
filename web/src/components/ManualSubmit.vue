@@ -66,7 +66,11 @@ onMounted(async () => {
     </thead>
     <tbody class="has-text-grey-dark">
       <tr v-for="result in submissionResponse">
-        <td>{{ result.status }}</td>
+        <td>
+          {{ result.status }}
+          <Icon v-if="result.persisted === true" icon="ri:database-2-line" class="is-size-6" inline="true" />
+          <Icon v-else icon="ri:delete-bin-6-fill" class="is-size-6" inline="true" />
+        </td>
         <td class="has-tooltip-arrow">{{ result.value }}</td>
         <td class="has-tooltip-arrow">{{ result.response }}</td>
       </tr>

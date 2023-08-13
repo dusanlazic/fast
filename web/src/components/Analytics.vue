@@ -227,10 +227,10 @@ onMounted(() => {
           <p class="is-size-6 ml-4">
             <span class="has-tooltip-arrow" :data-tooltip="getStatusElements(exploit)[1]">
               {{ exploit.name }}
-              <Icon :icon="getStatusElements(exploit)[0]" :inline="true" />
+              <Icon :icon="getStatusElements(exploit)[0]" inline="true" />
             </span>
             <span class="ml-2 has-tooltip-arrow" data-tooltip="Service requires patching">
-              <Icon v-if="exploit.currentTick.vuln" icon="ri:bug-fill" :inline="true"/>
+              <Icon v-if="exploit.currentTick.vuln" icon="ri:bug-fill" inline="true"/>
             </span>
           </p>
           <div style="height: 70px;">
@@ -239,13 +239,13 @@ onMounted(() => {
           </div>
           <div class="pl-4 pr-4 pt-1 is-flex is-justify-content-space-between">
             <p class="has-text-grey is-size-6">
-              <Icon class="mr-2" icon="ri:flag-fill" :inline="true" />{{ exploit.currentTick.new }}
+              <Icon class="mr-2" icon="ri:flag-fill" inline="true" />{{ exploit.currentTick.new }}
             </p>
             <p class="has-text-grey is-size-6">
-              <Icon class="mr-2" icon="ri:delete-bin-6-fill" :inline="true" />{{ exploit.currentTick.dup }}
+              <Icon class="mr-2" icon="ri:delete-bin-6-fill" inline="true" />{{ exploit.currentTick.dup }}
             </p>
             <p class="has-text-grey is-size-6 has-tooltip-arrow" :data-tooltip="getHitsList(exploit)">
-              <Icon class="mr-2" icon="ri:crosshair-2-line" :inline="true" />{{ exploit.currentTick.hits.size }}
+              <Icon class="mr-2" icon="ri:crosshair-2-line" inline="true" />{{ exploit.currentTick.hits.size }}
             </p>
           </div>
         </div>

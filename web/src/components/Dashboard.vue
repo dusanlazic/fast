@@ -16,9 +16,9 @@ function getExploitsList() {
 <template>
   <p class="subtitle is-size-4">
     Current tick
-    <Icon icon="ri:timer-line" :inline="true" />
+    <Icon icon="ri:timer-line" inline="true" />
     <span class="subtitle has-text-grey-light is-pulled-right">
-      <Icon icon="ri:timer-fill" :inline="true" class="is-size-4" />
+      <Icon icon="ri:timer-fill" inline="true" class="is-size-4" />
       Next tick in {{ timers.tickSecondsRemaining }}s
     </span>
   </p>
@@ -27,7 +27,7 @@ function getExploitsList() {
       <div class="card">
         <div class="card-content">
           <p class="subtitle">
-            <Icon icon="ri:flag-fill" :inline="true" />
+            <Icon icon="ri:flag-fill" inline="true" />
             Flags received
           </p>
           <p class="title">
@@ -40,7 +40,7 @@ function getExploitsList() {
       <div class="card">
         <div class="card-content">
           <p class="subtitle">
-            <Icon icon="ri:delete-bin-6-fill" :inline="true" />
+            <Icon icon="ri:delete-bin-6-fill" inline="true" />
             Duplicates
           </p>
           <p class="title">
@@ -53,7 +53,7 @@ function getExploitsList() {
       <div class="card">
         <div class="card-content">
           <p class="subtitle">
-            <Icon icon="ri:database-2-fill" :inline="true" />
+            <Icon icon="ri:database-2-fill" inline="true" />
             Added to queue
           </p>
           <p class="title">
@@ -66,7 +66,7 @@ function getExploitsList() {
       <div class="card">
         <div class="card-content">
           <p class="subtitle">
-            <Icon icon="ri:sword-fill" :inline="true" />
+            <Icon icon="ri:sword-fill" inline="true" />
             <span class="has-tooltip-arrow" :data-tooltip="getExploitsList()"> Exploits</span>
           </p>
           <p class="title">
@@ -79,9 +79,9 @@ function getExploitsList() {
 
   <p class="subtitle is-size-4 mt-4">
     Flag store
-    <Icon icon="ri:flag-line" :inline="true" />
+    <Icon icon="ri:flag-line" inline="true" />
     <span class="subtitle has-text-grey-light is-pulled-right">
-      <Icon icon="ri:send-plane-fill" :inline="true" class="is-size-4" />
+      <Icon icon="ri:send-plane-fill" inline="true" class="is-size-4" />
       Next submit in {{ timers.submitSecondsRemaining }}s
     </span>
   </p>
@@ -91,11 +91,11 @@ function getExploitsList() {
         <progress v-show="counters.store.submitting" class="progress is-loader"></progress>
         <div class="card-content">
           <p v-if="counters.store.submitting" class="subtitle">
-            <Icon icon="ri:send-plane-fill" :inline="true" />
+            <Icon icon="ri:send-plane-fill" inline="true" />
             <span> Submitting</span>
           </p>
           <p v-else class="subtitle">
-            <Icon icon="ri:check-line" :inline="true" />
+            <Icon icon="ri:check-line" inline="true" />
             <span> In queue</span>
           </p>
           <p class="title">
@@ -109,7 +109,7 @@ function getExploitsList() {
         <progress v-show="counters.store.submitting" class="progress is-loader"></progress>
         <div class="card-content">
           <p class="subtitle">
-            <Icon icon="ri:check-double-line" :inline="true" />
+            <Icon icon="ri:check-double-line" inline="true" />
             Accepted <span class="has-text-success" v-if="counters.store.delta.accepted > 0">+{{
               counters.store.delta.accepted }}</span>
           </p>
@@ -124,7 +124,7 @@ function getExploitsList() {
         <progress v-show="counters.store.submitting" class="progress is-loader"></progress>
         <div class="card-content">
           <p class="subtitle">
-            <Icon icon="ri:close-line" :inline="true" />
+            <Icon icon="ri:close-line" inline="true" />
             Rejected <span class="has-text-grey-light" v-if="counters.store.delta.rejected > 0">+{{
               counters.store.delta.rejected }}</span>
           </p>
@@ -138,7 +138,7 @@ function getExploitsList() {
 
   <p class="subtitle is-size-4 mt-4">
     Exploits
-    <Icon icon="ri:sword-line" :inline="true" />
+    <Icon icon="ri:sword-line" inline="true" />
   </p>
 
   <Analytics />

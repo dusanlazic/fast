@@ -249,12 +249,14 @@ def enqueue_manual():
         return [
             {
                 'status': flag.status, 
-                'value': flag.value
+                'value': flag.value,
+                'persisted': flag._pk is not None
             } for flag in new_flags
         ] + [
             {
                 'status': 'duplicate',
-                'value': value
+                'value': value,
+                'persisted': False
             } for value in duplicate_flags
         ]
     elif action == 'submit':
@@ -269,7 +271,7 @@ def enqueue_manual():
                     exploit='manual', target='unknown', status='accepted', response=response)
                 accepted_flags.append(flag)
             except IntegrityError:
-                pass
+                accepted_flags.append(Flag(value=value, status='accepted', response=response))
         
         for value, response in rejected.items():
             try:
@@ -278,19 +280,20 @@ def enqueue_manual():
                     exploit='manual', target='unknown', status='rejected', response=response)
                 rejected_flags.append(flag)
             except IntegrityError:
-                pass
+                rejected_flags.append(Flag(value=value, status='accepted', response=response))
         
         return [
             {
                 'status': flag.status, 
                 'value': flag.value,
-                'response': flag.response
+                'response': flag.response,
+                'persisted': flag._pk is not None
             } for flag in chain(accepted_flags, rejected_flags)
         ]
     else:
         return {
-            'message': 'Vulnerability reported.'
-        }
+            'message': 'Unknown action.'
+        }, 400
 
 
 @app.route('/vuln-report', methods=['POST'])
@@ -371,13 +374,16 @@ def get_exploit_analytics():
 
 @app.route('/search', methods=['POST'])
 def search():
-    # TODO: Validate request
     request_json = request.json
 
     # Build search query
     try:
         parsed_query = parse_query(request_json['query'])
         peewee_query = build_query(parsed_query)
+    except KeyError:
+        return {
+            'error': 'Missing query.'
+        }, 400
     except ParseException:
         return {
             'error': 'Invalid query.'

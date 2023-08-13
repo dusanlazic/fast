@@ -53,7 +53,7 @@ const navigation = reactive({
 <template>
   <div class="is-flex mb-5">
     <div v-for="[path, page] in Object.entries(routes)" @click="navigation.navigate(path)" class="navigation-link" :class="{ active: path === navigation.path}">
-      <Icon :icon="getIcon(path)" class="is-size-4 mr-2" :inline="true" />
+      <Icon :icon="getIcon(path)" class="is-size-4 mr-2" inline="true" />
       <span>{{ page.title }}</span>
     </div>
   </div>
