@@ -25,6 +25,7 @@ from util.log import logger
 from util.styler import TextStyler as st
 from util.helpers import truncate, deep_update, flag_model_to_dict
 from util.validation import validate_data, validate_delay, server_yaml_schema
+from pyparsing.exceptions import ParseException
 
 app = Flask(__name__, static_url_path='')
 auth = HTTPBasicAuth()
@@ -374,9 +375,21 @@ def search():
     request_json = request.json
 
     # Build search query
-    # TODO: Validate query and handle errors
-    parsed_query = parse_query(request_json['query'])
-    peewee_query = build_query(parsed_query)
+    try:
+        parsed_query = parse_query(request_json['query'])
+        peewee_query = build_query(parsed_query)
+    except ParseException:
+        return {
+            'error': 'Invalid query.'
+        }, 400
+    except AttributeError as e:
+        return {
+            'error': f'Unknown field {e.args[0].split()[-1]}.'
+        }, 400
+    except Exception as e:
+        return {
+            'error': f'Something is broken either with your query or with the way it is processed. :('
+        }, 500
     
     # Select page
     page = request_json.get('page', 1)
@@ -391,12 +404,17 @@ def search():
 
     # Run query
     start = time.time()
-    results = [flag_model_to_dict(flag) for flag in 
-        Flag.select()
-        .where(peewee_query)
-        .order_by(*sort_expressions)
-        .paginate(page, show)
-    ]
+    try:
+        results = [flag_model_to_dict(flag) for flag in 
+            Flag.select()
+            .where(peewee_query)
+            .order_by(*sort_expressions)
+            .paginate(page, show)
+        ]
+    except Exception:
+        return {
+            'error': f'Failed to run the query.'
+        }, 500
     elapsed = time.time() - start
 
     total = Flag.select().where(peewee_query).count()

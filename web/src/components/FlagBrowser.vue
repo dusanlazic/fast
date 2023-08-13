@@ -8,8 +8,9 @@ const page = ref(1)
 const show = ref(25)
 const sort = ref([])
 
+const error = ref('')
 const loading = ref(false)
-const results = reactive({
+const initialState = {
   metadata: {
     paging: {
       current: 0,
@@ -24,7 +25,8 @@ const results = reactive({
     }
   },
   results: []
-})
+}
+const results = reactive({...initialState})
 
 const searchFlags = async () => {
   loading.value = true
@@ -34,7 +36,17 @@ const searchFlags = async () => {
     sort.value,
     query.value === '' ? 'tick >= 0' : query.value
   )
-  Object.assign(results, data)
+
+  console.log(data)
+
+  if ('error' in data) {
+    Object.assign(results, initialState)
+    error.value = data.error
+  } else {
+    Object.assign(results, data)
+    error.value = ''
+  }
+
   loading.value = false
 }
 
@@ -192,6 +204,10 @@ const getSortIcon = (field) => {
         </th>
       </thead>
     </table>
+  </div>
+
+  <div v-show="error" class="notification is-primary is-light">
+    {{ error }}
   </div>
 
   <table class="table is-fullwidth is-hoverable is-size-6">

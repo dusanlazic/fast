@@ -22,14 +22,16 @@ export default {
     return response.data
   },
   async searchFlags(page, show, sort, query) {
-    const response = await client.post('/search', {
+    return await client.post('/search', {
       "page": page,
       "show": show,
       "sort": sort,
-      "query": query,
-      "hide_flags": 'off'
-    })
-    return response.data
+      "query": query
+    }).then(function (response) {
+      return response.data
+    }).catch(function (error) {
+      return error.response.data
+    }) 
   },
   async submitFlags(flags, action, player) {
     const response = await client.post('/enqueue-manual', {
