@@ -65,7 +65,7 @@ connect_schema = {
     "properties": {
         "protocol": {
             "type": "string",
-            "enum": ["http"]  # TODO: Support https
+            "enum": ["http", "https"]
         },
         "host": {
             "type": "string",
@@ -123,14 +123,17 @@ exploit_schema = {
             "type": "number",
             "exclusiveMinimum": 0
         },
-        "partition": {
+        "batches": {
             "type": "object",
             "properties": {
                 "count": {"type": "integer", "minimum": 1},
                 "size": {"type": "integer", "minimum": 1},
                 "wait": {"type": "number", "exclusiveMinimum": 0}
             },
-            "required": ["wait"]
+            "oneOf": [
+                {"required": ["wait", "count"], "not": {"required": ["size"]}},
+                {"required": ["wait", "size"], "not": {"required": ["count"]}}
+            ]
         },
         "targets": {
             "type": "array",
@@ -177,7 +180,6 @@ submitter_schema = {
     "type": "object",
     "properties": {
         "delay": {"type": "number", "exclusiveMinimum": 0},
-        "run_every_nth_tick": {"type": "integer", "minimum": 1},
         "module": {"type": "string"},
     },
     "required": ["delay"],

@@ -1,7 +1,6 @@
 from gevent import monkey
 monkey.patch_all()
 import os
-import re
 import sys
 import json
 import yaml
@@ -39,8 +38,7 @@ submit_func = None
 config = {
     'game': {},
     'submitter': {
-        'module': 'submitter',
-        'run_every_nth_tick': 1
+        'module': 'submitter'
     },
     'server': {
         'host': '0.0.0.0',
@@ -59,7 +57,7 @@ RECOVERY_CONFIG_PATH = '.recover.json'
 
 
 def main():
-    splash()
+    banner()
     configure_flask()
     load_config()
     setup_database()
@@ -81,9 +79,8 @@ def main():
     # Schedule flag submitting
 
     delay = timedelta(seconds=submitter['delay'])
-    run_every_nth = submitter['run_every_nth_tick']
-    interval = run_every_nth * game['tick_duration']
-    first_run =  tick_start + (run_every_nth - 1) * timedelta(seconds=game['tick_duration']) + delay
+    interval = game['tick_duration']
+    first_run =  tick_start + delay
 
     global submit_func
     sys.path.append(os.getcwd())
@@ -373,6 +370,7 @@ def get_exploit_analytics():
 
 
 @app.route('/search', methods=['POST'])
+@basic
 def search():
     request_json = request.json
 
@@ -473,9 +471,8 @@ def trigger_submit():
     logger.info(f"Submitter triggered manually by {st.bold(request.json['player'])}.")
     submitter_wrapper(submit_func)
 
-    # TODO: Improve interactivity
     return {
-        'message': 'Flags submitted.'
+        'message': 'Flag submission completed. Check the web dashboard.'
     }
 
 
@@ -611,7 +608,7 @@ def generate_exploit_analytics():
     return report
 
 
-def setup_database():
+def setup_database(log=True):
     postgres = PostgresqlDatabase(
         config['database']['name'], 
         user=config['database']['user'],
@@ -630,7 +627,9 @@ def setup_database():
     
     db.create_tables([Flag])
     Flag.add_index(Flag.value)
-    logger.success('Database connected.')
+    
+    if log:
+        logger.success('Database connected.')
 
 
 def configure_flask():
@@ -647,6 +646,10 @@ def configure_flask():
 
 def load_config():
     # Load server.yaml
+    if not os.path.isfile('server.yaml'):
+        logger.error(f"{st.bold('server.yaml')} not found in the current working directory. Exiting...")
+        exit(1)
+
     with open('server.yaml', 'r') as file:
         yaml_data = yaml.safe_load(file)
 
@@ -697,13 +700,13 @@ def recover():
             }))
 
 
-def splash():
-    vers = '0.0.1'
+def banner():
+    vers = '1.0.0'
     print(f"""
-[32;1m     .___    ____[0m    ______         __ 
-[32;1m    /   /\__/   /[0m   / ____/_  ____ / /_  
-[32;1m   /   /   /  ❬` [0m  / /_/ __ `/ ___/ __/
-[32;1m  /___/   /____\ [0m / __/ /_/ (__  ) /_  
-[32;1m /    \___\/     [0m/_/  \__,_/____/\__/  
-[32;1m/[0m                      [32mserver[0m [2mv{vers}[0m
+\033[32;1m     .___    ____\033[0m    ______         __ 
+\033[32;1m    /   /\__/   /\033[0m   / ____/_  ____ / /_  
+\033[32;1m   /   /   /  ❬` \033[0m  / /_/ __ `/ ___/ __/
+\033[32;1m  /___/   /____\ \033[0m / __/ /_/ (__  ) /_  
+\033[32;1m /    \___\/     \033[0m/_/  \__,_/____/\__/  
+\033[32;1m/\033[0m                      \033[32mserver\033[0m \033[2mv{vers}\033[0m
 """)

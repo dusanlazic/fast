@@ -22,10 +22,10 @@ class FallbackFlag(FallbackBaseModel):
     status = CharField(constraints=[Check("status IN ('pending', 'forwarded')")])
 
 
-Partition = namedtuple('Partition', 'count size wait')
+Batching = namedtuple('Batching', 'count size wait')
 
 class ExploitDetails:
-    def __init__(self, name, targets, module=None, run=None, prepare=None, cleanup=None, timeout=None, env=None, delay=None, partition=None, partitioned=None):
+    def __init__(self, name, targets, module=None, run=None, prepare=None, cleanup=None, timeout=None, env=None, delay=None, batching=None):
         self.name = name
         self.targets = targets
         self.module = module
@@ -35,5 +35,4 @@ class ExploitDetails:
         self.timeout = timeout
         self.env = env
         self.delay = delay
-        self.partition = partition
-        self.partitioned = partitioned
+        self.batching = batching

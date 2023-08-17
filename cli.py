@@ -1,7 +1,6 @@
 from gevent import monkey
 monkey.patch_all()
 import os
-import json
 import argparse
 import threading
 from util.log import logger
@@ -40,31 +39,36 @@ def fire():
 
 
 def submit():
-    SubmitClient().trigger_submit()
+    logger.info("Submission triggered...")
+    client = SubmitClient()
+    client.trigger_submit()
+    stats = client.get_flagstore_stats()
+    logger.info(f"{st.bold('Stats')} — {st.bold(stats['queued'])} queued, {st.bold(stats['accepted'])} accepted, {st.bold(stats['rejected'])} rejected.")
 
 
 def reset():
     RECOVERY_CONFIG_PATH = '.recover.json'
+    QMARK = st.color('?', 'cyan')
+    PLUS = st.color('OK', 'green')
+    INFO = st.faint('SKIP')
 
     if os.path.isfile(RECOVERY_CONFIG_PATH):
-        with open(RECOVERY_CONFIG_PATH) as file:
-            backup = json.loads(file.read())
+        print(f"{QMARK} Do you want to {st.color('reset the tick clock', 'red')}?")
+        confirm_string = 'reset'
+        confirmation = input(f"  Type {st.color(confirm_string, 'cyan')} to confirm. ") == confirm_string
+        if confirmation:
+            os.remove(RECOVERY_CONFIG_PATH)
+            print(f"{PLUS} Tick clock cleared.")
+        else:
+            print(f"{INFO} Tick clock left intact.")
 
-        # TODO: Improve interactivity
-        os.remove(RECOVERY_CONFIG_PATH)
-        logger.info(
-            "Tick number reset. If you changed your mind, you can still copy it:")
-        logger.info(st.color(backup, 'green'))
-
-    setup_database()
-    confirm_string = "drop table flags;"
-
-    print(f"{st.color('?', 'green')} Do you want to {st.color('delete', 'red')} the existing flags?")
-    confirmation = input(
-        f'  Type {st.color(confirm_string, "blue")} to delete all the previous flags. Type anything else to keep them.\n> ') == confirm_string
+    setup_database(log=False)
+    print(f"{QMARK} Do you want to {st.color('delete the existing flags', 'red')}?")
+    confirm_string = ');drop table flags;--'
+    confirmation = input(f'  Type {st.color(confirm_string, "cyan")} to delete all the previous flags.\n     > ') == confirm_string
 
     if confirmation:
         db.drop_tables([Flag])
-        logger.success("Table 'Flag' dropped.")
+        print(f"{PLUS} Table 'Flag' dropped.")
     else:
-        logger.success("Understood. Skipped deleting flags.")
+        print(f"{INFO} Flags left intact.")

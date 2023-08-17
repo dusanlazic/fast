@@ -4,6 +4,7 @@ import requests
 from util.log import logger
 from util.styler import TextStyler as st
 from datetime import datetime, timedelta
+from requests.auth import HTTPBasicAuth
 from database import fallbackdb
 from models import FallbackFlag
 
@@ -16,6 +17,7 @@ headers = {
 
 class SubmitClient(object):
     def __init__(self, connect=None):
+        self.auth = None
         if connect:
             self.connect = connect
             self._client_configure()
@@ -25,7 +27,8 @@ class SubmitClient(object):
 
     def _client_configure(self):
         self._update_url()
-        response = requests.get(f'{self.url}/config', params={'player': self.connect['player']})
+        self._update_auth()
+        response = requests.get(f'{self.url}/config', params={'player': self.connect['player']}, auth=self.auth)
         response.raise_for_status()
         server_config = response.json()
         self.game = server_config['game']
@@ -46,24 +49,26 @@ class SubmitClient(object):
         self.game = immutable_config['game']
         self.connect = immutable_config['connect']
         self._update_url()
+        self._update_auth()
 
     def _update_url(self):
         protocol = self.connect['protocol']
         host = self.connect['host']
         port = self.connect['port']
+        self.url = f"{protocol}://{host}:{port}"
 
+    def _update_auth(self):
         if self.connect.get('password') != None:
-            user = self.connect['player']
-            password = self.connect['password']
-            self.url = f"{protocol}://{user}:{password}@{host}:{port}"
-        else:
-            self.url = f"{protocol}://{host}:{port}"
+            self.auth = HTTPBasicAuth(
+                self.connect['player'],
+                self.connect['password']
+            )
 
     def _connect_to_fallbackdb(self):
         fallbackdb.connect(reuse_if_open=True)
 
     def sync(self):
-        response = requests.get(f'{self.url}/sync')
+        response = requests.get(f'{self.url}/sync', auth=self.auth)
         sync_data = response.json()
 
         wait_until = datetime.now() + timedelta(seconds=sync_data['tick']['remaining'])
@@ -80,14 +85,14 @@ class SubmitClient(object):
 
         if target in self.game['team_ip']:
             try:
-                response = requests.post(f'{self.url}/vuln-report', data=payload, headers=headers)
+                response = requests.post(f'{self.url}/vuln-report', data=payload, headers=headers, auth=self.auth)
             except Exception:
                 pass
             return {'own': len(flags)}
         
         try:
             response = requests.post(
-                f'{self.url}/enqueue', data=payload, headers=headers)
+                f'{self.url}/enqueue', data=payload, headers=headers, auth=self.auth)
         except Exception:
             for flag_value in flags:
                 with fallbackdb.atomic():
@@ -110,7 +115,7 @@ class SubmitClient(object):
 
         try:
             response = requests.post(
-                f'{self.url}/enqueue-fallback', data=payload, headers=headers)
+                f'{self.url}/enqueue-fallback', data=payload, headers=headers, auth=self.auth)
             response.raise_for_status()
         except Exception:
             logger.error("Server is unavailable. Skipping...")
@@ -122,6 +127,9 @@ class SubmitClient(object):
         payload = json.dumps({
             'player': self.connect['player']
         })
+        response = requests.post(f'{self.url}/trigger-submit', data=payload, headers=headers, auth=self.auth)
+        return response.json()
 
-        response = requests.post(f'{self.url}/trigger-submit', data=payload, headers=headers)
+    def get_flagstore_stats(self):
+        response = requests.get(f'{self.url}/flagstore-stats', auth=self.auth)
         return response.json()

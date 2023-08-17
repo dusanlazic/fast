@@ -9,6 +9,7 @@ import subprocess
 from util.helpers import truncate
 from importlib import import_module
 from handler import SubmitClient
+from models import Batching
 from util.styler import TextStyler as st
 from util.log import logger, log_error, log_warning
 
@@ -45,17 +46,33 @@ def main(args):
         for target in args.targets
     ]
 
-    if prepare_func and (args.partitioned is None or args.partitioned == -1):
+    batching = Batching(
+        args.batch_count or None,
+        args.batch_size or None,
+        args.batch_wait or None
+    ) if args.batch_wait else None
+
+    if prepare_func:
         prepare_func()
 
-    for t in threads:
-        t.start()
+    if batching:
+        batches = batch_by_count(threads, batching.count) if batching.count else batch_by_size(threads, batching.size)
+        for idx, threads in enumerate(batches):
+            logger.info(f"Running batch {idx + 1}/{len(batches)} of {st.bold(exploit_name)} at {st.bold(len(threads))} targets.")
+            for t in threads:
+                t.start()
 
-    for t in join_threads(threads, args.timeout):
-        logger.error(
-            f"{st.bold(exploit_name)} took longer than {st.bold(str(args.timeout))} seconds for {st.bold(t.name)}. ⌛")
+            if idx < len(batches) - 1:
+                time.sleep(batching.wait)
+    else:
+        for t in threads:
+            t.start()
 
-    if cleanup_func and (args.partitioned is None or args.partitioned == 1):
+        for t in join_threads(threads, args.timeout):
+            logger.error(
+                f"{st.bold(exploit_name)} took longer than {st.bold(str(args.timeout))} seconds for {st.bold(t.name)}. ⌛")
+
+    if cleanup_func:
         cleanup_func()
 
 
@@ -141,6 +158,20 @@ def join_threads(threads, timeout):
     else:
         return [t for t in threads if t.is_alive()]
 
+
+def batch_by_size(threads, size):
+    return [threads[i:i + size] for i in range(0, len(threads), size)]
+
+
+def batch_by_count(threads, count):
+    size = len(threads) // count
+    remainder = len(threads) % count
+    batches = [threads[i * size : (i + 1) * size] for i in range(count)]
+    for i in range(remainder):
+        batches[i].append(threads[count * size + i])
+    return batches
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Run exploits in parallel for given IP addresses.")
@@ -158,8 +189,12 @@ if __name__ == "__main__":
                         help="Run cleanup command from the module after attacking")
     parser.add_argument("--timeout", type=int, default=30,
                         help="Optional timeout for exploit in seconds")
-    parser.add_argument("--partitioned", type=int, nargs='?', choices=[-1, 0, 1], default=None,
-                        help="Run in partitioned mode to skip running prepare, cleanup or both functions.")
+    parser.add_argument("--batch-size", type=int, default=None,
+                        help="Split targets list into batches of given size.")
+    parser.add_argument("--batch-count", type=int, default=None,
+                        help="Split targets list into given number of batches of equal size.")
+    parser.add_argument("--batch-wait", type=int, default=None,
+                        help="Number of seconds to wait for between running each batch.")
 
     args = parser.parse_args()
     main(args)
