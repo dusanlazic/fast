@@ -118,9 +118,12 @@ def load_exploits():
             logger.info('Reloading exploits...')
             yaml_data = yaml.safe_load(file)
 
-            exploits_data = yaml_data.get('exploits')
-            if not exploits_data:
-                logger.warning(f"'exploits' section is missing in {st.bold('fast.yaml')}. Please add 'exploits' section to start running exploits in the next tick.")
+            exploits_data = yaml_data.get('exploits', 'MISSING')
+            if exploits_data == 'MISSING':
+                logger.warning(f"{st.bold('exploits')} section is missing in {st.bold('fast.yaml')}. Please add {st.bold('exploits')} section to start running exploits in the next tick.")
+                return
+            elif exploits_data == None:
+                logger.warning(f"{st.bold('exploits')} section contains no exploits. Please add your exploits to start running them in the next tick.")
                 return
 
             if not validate_data(exploits_data, exploits_schema, custom=validate_targets):
@@ -184,6 +187,10 @@ def load_config():
     with open('fast.yaml', 'r') as file:
         yaml_data = yaml.safe_load(file)
 
+    if not yaml_data:
+        logger.error(f"{st.bold('fast.yaml')} is empty. Exiting...")
+        exit(1)
+
     # Load and validate connection config
     logger.info('Loading connection config...')
     connect_data = yaml_data.get('connect')
@@ -196,9 +203,11 @@ def load_config():
 
     # Load and validate exploits config
     logger.info('Checking exploits config...')
-    exploits_data = yaml_data.get('exploits')
-    if not exploits_data:
+    exploits_data = yaml_data.get('exploits', 'MISSING')
+    if exploits_data == 'MISSING':
         logger.warning(f"{st.bold('exploits')} section is missing in {st.bold('fast.yaml')}. Please add {st.bold('exploits')} section to start running exploits in the next tick.")
+    elif exploits_data == None:
+        logger.warning(f"{st.bold('exploits')} section contains no exploits. Please add your exploits to start running them in the next tick.")
     elif exploits_data and not validate_data(exploits_data, exploits_schema, custom=validate_targets):
         logger.error(f"Fix errors in {st.bold('exploits')} section in {st.bold('fast.yaml')} and rerun.")
         exit(1)

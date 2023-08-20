@@ -653,6 +653,10 @@ def load_config():
     with open('server.yaml', 'r') as file:
         yaml_data = yaml.safe_load(file)
 
+    if not yaml_data:
+        logger.error(f"{st.bold('fast.yaml')} is empty. Exiting...")
+        exit(1)
+
     # Load and validate server config
     if not validate_data(yaml_data, server_yaml_schema, custom=validate_delay):
         logger.error(f"Fix errors in {st.bold('server.yaml')} and rerun.")
