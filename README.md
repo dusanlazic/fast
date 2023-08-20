@@ -1,238 +1,133 @@
 # 🚩 Fast — Flag Acquisition and Submission Tool
 
-Fast is a Python tool designed to easily manage your exploits and automate submitting flags in A/D competitions. The goal of Fast is to make writing exploits your only concern in A/D competitions, while maintaining simplicity.
+Fast is a specialized tool built in Python designed for managing exploits and automating flag submission in Attack/Defense (A/D) competitions. The goal of Fast is to take the technical burden off the team players, allowing them to focus on writing exploits and patching vulnerabilities.
 
-> Keep in mind that this tool is in early stages of development and at this moment it is still an experimental tool. Fast is yet to be improved and more battle tested. :)
-
-
-![Dashboard for monitoring real-time data](/docs/dashboard.png)
-
+The development of Fast was heavily influenced by the practical experiences and valuable insights gathered by the **Serbian National ECSC Team** 🇷🇸 who utilized the tool in multiple A/D competitions. Fast's development roadmap will continue to be aligned with the team's needs.
 
 ## Installation
 
-> Remember to create a Python virtual environment before installing:
-> 
-> `python3 -m venv venv && source venv/bin/activate`
-
-To install Fast you can use this one-liner.
+To install the latest release, run the following command:
 
 ```sh
-curl -s https://lazicdusan.com/fast.sh | sh
+pip install https://github.com/dusanlazic/fast/archive/refs/tags/1.0.0.tar.gz
 ```
 
-Or you can do it yourself.
+## Overview
 
-```sh
-git clone --depth 1 https://github.com/dusanlazic/fast.git
-pip install -e fast/
-```
-
-## Usage
-
-### Setup server 🗄
-
-1. After installing Fast on your submitter-dedicated machine, navigate to a preferably empty directory and create a file named `server.yaml`. This file will contain the configuration for the game, submitter and server. The following example covers everything you should configure.
-
-```yaml
-game:
-  tick_duration: 120
-  flag_format: FAST\{[a-f0-9]{10}\}  # Fast will extract all the flags from your exploit's response
-  team_ip: 172.20.0.5  # Discard flags of your own team. If your team has multiple addresses, use a list: [172.20.0.5, 172.20.1.5, 172.20.2.5]
-
-submitter:
-  delay: 10  # Submit flags 10 seconds after the beginning of each tick
-  run_every_nth_tick: 3  # If flags stay valid for multiple ticks (e.g. 3), you can submit on every 3rd tick instead (default: 1)
-  module: submitter  # Submitter module name (default: submitter)
-
-server:
-  host: 0.0.0.0  # Accept connections from any network interface or IP address
-  port: 2023  # Run Fast server on port 2023
-  password: letmein  # Optionally add a password for basic auth
-```
-
-2. In the same directory, create a submitter script. If you did not specify `module` in `server.yaml`, name it `submitter.py`. Otherwise, name it to match your custom module name. To work properly with Fast, submitter should follow this [submitter script guideline](#submitter-script-guideline).
-
-3. Run Postgres database. For now, you can use this one-liner.
-
-```sh
-docker pull postgres:alpine && docker run --name "fast_database_container" -e POSTGRES_DB="fast" -e POSTGRES_USER="admin" -e POSTGRES_PASSWORD="admin" -p 5432:5432 -d postgres
-```
-
-*In the later versions, you will be able to configure database connection.s
-
-4. Run server.
-
-```
-server
-```
-
-That's it. Fast server will be ready to receive the flags and submit them automatically.
-
-### Setup client 🤖
-
-1. After installing Fast on a player machine, navigate to the directory containing your exploit scripts. Directory structure may look like this, and exploits should follow this [simple guideline](#exploit-script-guidelines).
-
-```
-myexploits/
-├── alpha.py
-├── bravo.py
-├── charlie.py
-├── delta.rs
-├── echo.py
-├── foxtrot.py
-└── golf.sh
-```
-
-2. In the same directory, create a file named `fast.yaml`. This file will contain configuration for the server connection, your exploits and their target IPs. The following example covers everything you can do with Fast for now.
+### Manage Exploits with YAML
 
 ```yaml
 connect:
-  host: 192.168.1.49  # Host of the machine that is running Fast server
+  host: 192.168.13.37
   port: 2023
-  player: s4ndu  # Your username to identify your actions in logs
-  password: letmein  # If the server has a password, use it here
+  player: s4ndu
 
 exploits:
-  # IP addresses can be listed individually, and IP ranges can be expressed using hyphens
   - name: alpha
     targets:
-      - 172.20.0.3
-      - 172.20.0.5
-      - 172.20.0.7-11
-
-  # Timeout can be set for terminating a hanging exploit
+      - 10.1.2-11.1
+  
   - name: bravo
-    timeout: 15
     targets:
-      - 172.20.0.2-11
-
-  # Exploit can have a custom name different from its module name
-  - name: charlie (v2)
-    module: charlie
+      - 10.1.2.1
+      - 10.1.6.1
+      - 10.1.8-11.1
+  
+  - name: charlie
+    run: ./charlie.sh [ip]
     targets:
-      - 172.20.0.2-11
-
-  # Non-Python exploit can be ran by running a custom shell command
-  - name: delta
-    cmd: ./delta [ip]
-    targets:
-      - 172.20.0.2-11
-
-  # Environment variables can be set
-  - name: echo
-    env:
-      KEY: 26fc75b98472
-      WEBHOOK: https://webhook.site/00d8f0b7-6084-4aa0-8b59-a728ae2be450
-    targets:
-      - 172.20.0.2-11
-
-  # Spikes in CPU and network usage in each tick? Arrange exploits by setting a delay
-  - name: foxtrot
-    delay: 5
-    targets:
-      - 172.20.0.2-11
+      - 10.1.2-11.1
 ```
 
-3. Run client.
+### Utilize Tick Time Wisely
 
-```sh
-fast
-```
-
-Your exploits will now be executed during each tick. At the beginning of a tick, Fast will check if there were any changes in your exploit configuration and apply them.
-
-### Exploit Script Guideline
-
-#### Python scripts 🐍
-
-To work properly with Fast, your script should have a function named `exploit` that takes the target's IP address as the only parameter, and returns flags (or some text containing one or multiple flags) as a string. That's about it.
-
-Here is a very basic example of how an exploit script should be structured:
-
-```python
-import requests
-
-def exploit(target):
-    return requests.get(f"http://{target}:5000/flag").text
-```
-
-#### Other scripts 🦀💲☕
-
-For non-Python scripts, just provide a way to pass the target's IP address as a command line argument, and make sure to output only the text containing a flag (or multiple flags) on `stdout`.
-
-Something like this:
-```bash
-#!/bin/bash
-curl -s "http://$1:5000/flag"
-```
-
-When adding the exploit to `fast.yaml`, provide the command for running it and include the placeholder for target's IP (`[ip]`):
 ```yaml
-- name: my bash exploit
-  cmd: bash getflag.sh [ip]
+- name: lima
+  batches:
+    count: 5
+    wait: 3
   targets:
-    - 172.20.0.2-11
+    - 10.1.2-31.1
+
+- name: mike
+  delay: 2
+  batches:
+    size: 8
+    wait: 3
+  targets:
+    - 10.1.2-31.1
 ```
 
-### Submitter Script Guideline
+![](docs/assets/images/attacks3.png)
 
-Your submitter script should have a function named `submit` that takes a single parameter, which is a list of flags (string values) for submission. The `submit` function should return two dictionaries, where the **keys** are **flag values**, and the **values** are **flag service responses**. The first dictionary should contain accepted flags, and the second one rejected flags.
 
-Here is an example of how a submitter script may look like:
+### Straightforward Exploit and Submitter Templates
+
 
 ```python
-import requests
-import json
+from typing import List
 
-headers = {
-    'Content-Type': 'application/json',
-    'X-Team-ID': '5c1be7f38b586cd4'
-}
+def exploit(target: str) -> List[str]:
+    flags = []
 
-ACCEPT_RESPONSE = "OK"
+    # Exploit the target, get the flags
 
-def submit(flags):
-    payload = json.dumps(flags)
+    return flags
+```
 
-    response = requests.post('http://172.20.0.99:5000/flags', data=payload, headers=headers).text
+```python
+from typing import List, Tuple, Dict
 
-    flag_statuses = json.loads(response)
+def submit(flags: List[str]) -> Tuple[Dict[str, str], Dict[str, str]]:
+    accepted_flags = {}
+    rejected_flags = {}
 
-    accepted_flags = { item["flag"]: item["status"] for item in flag_statuses if ACCEPT_RESPONSE in item["status"] }
-    rejected_flags = { item["flag"]: item["status"] for item in flag_statuses if ACCEPT_RESPONSE not in item["status"] }
+    # Submit and categorize flags
 
     return accepted_flags, rejected_flags
+
 ```
 
-## Additional commands
+### See the Flags Yourself With Dashboard
 
-### fire
+![](docs/assets/images/dashboard.png)
 
-When you add a new exploit to the `fast.yaml` file, it will be loaded and executed during the next tick. However, if you do not want to wait and prefer to get the flags right away, you can run the exploits immediately by running `fire <exploit names>`.
+![](docs/assets/images/browser.png)
 
-### submit
 
-In a similar manner to the `fire` command, you can also trigger flag submission by running `submit`. 
+### Pressure-Friendly Query Language
 
-This command can be useful in combination with `fire`. For instance:
+Here are the examples of some actual queries. Basically, anything you write will likely work.
 
-```bash
-fire alpha bravo && submit
+```
+player is alice
+target = 10.1.3.5
+tick >= 25
+timestamp after 15:30
+status is accepted
+response matches ".* OK"
+value starts with "FAST{"
+status in [accepted, rejected]
+exploit not in [alpha, bravo]
+timestamp between 14:00 and 16:00
+response ending with "OK"
+player is bob and status is rejected
+exploit is alpha or target = "10.1.4.1"
+status == accepted && (exploit == beta || target == 10.1.5.1)
+player is charlie and timestamp < 12:00
+value contains "FAST" and status is not rejected
+target starts with "10.1."
+response != "DEMOffoxfzhX0avVWS/wBb0oMljtFde6Ir/10GUmv3aXFIcUXbM= OLD"
+tick between [10, 20]
+player is not alice and status in [accepted, queued]
+exploit is delta and (timestamp > 10:00 && timestamp < 14:00)
+response matches ".* DUP"
+player of [eve, frank]
+target ends with ".5"
+exploit is gamma and status is not queued
+exploit is alpha or (target is 10.1.4.1 and (timestamp < 16:00 or timestamp > 18:00))
 ```
 
-Executing this command will run the specified exploits and tell the server to submit all the flags in the queue, without waiting for the next tick.
+### Read the Docs for more
 
-
-## Planned features and goals
-
-- [ ] Handle connection failure with the server and provide a fallback for keeping the flags locally.
-- [ ] Guarantee that every non-duplicate retrieved flag will be submitted.
-- [ ] Support HTTPS to prevent packet sniffing for flags.
-- [ ] Optional centralized client integrated with git repository.
-- [x] Web dashboard for monitoring.
-- [x] Easy exploit health monitoring on dashboard.
-- [x] Verbose flag history (track OLD, DUP, etc.)
-- [x] Validate configs when starting.
-- [x] Make some client configuration (e.g. `connect`) immutable after starting.
-- [x] Synchronizing clients with the server.
-- [x] Restrict malicious actors from accessing the server (basic auth).
+[Fast docs](https://lazicdusan.com/fast)

@@ -1,0 +1,62 @@
+site_name: Fast Docs
+site_url: https://lazicdusan.com/fast
+repo_url: https://github.com/dusanlazic/fast
+repo_name: dusanlazic/fast
+theme:
+  name: material
+  favicon: assets/favicon.ico
+  logo: assets/flag-line.svg
+  features:
+    - content.code.copy
+    - navigation.footer
+    - navigation.instant
+  palette:
+    - scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+    - scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+markdown_extensions:
+  - attr_list
+  - def_list
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.tabbed:
+      alternate_style: true 
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - toc:
+      permalink: true
+
+nav:
+  - 'Introduction': 'index.md'
+  - 'Installation': 'install.md'
+  - 'Quickstart': 'quickstart.md'
+  - 'User Manual':
+    - 'Fast Server':
+        - 'Overview': 'user-manual/server/overview.md'
+        - 'Configuration': 'user-manual/server/configuration.md'
+        - 'Submitter Guideline': 'user-manual/server/submitter-guideline.md'
+        - 'Running': 'user-manual/server/running.md'
+    - 'Fast Dashboard': 
+        - 'Overview': 'user-manual/dashboard/overview.md'
+        - 'Dashboard': 'user-manual/dashboard/dashboard.md'
+        - 'Flag Browser': 'user-manual/dashboard/browser.md'
+        - 'Manual Submitter': 'user-manual/dashboard/manual.md'
+    - 'Fast Client':
+        - 'Overview': 'user-manual/client/overview.md'
+        - 'Configuration': 'user-manual/client/configuration.md'
+        - 'Exploit Guideline': 'user-manual/client/exploit-guideline.md'
+        - 'Exploit Management': 'user-manual/client/exploit-management.md'
+        - 'Running': 'user-manual/client/running.md'
+  - 'Troubleshooting': 'troubleshooting.md'
