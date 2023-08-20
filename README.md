@@ -9,7 +9,7 @@ The development of Fast was heavily influenced by the practical experiences and 
 To install the latest release, run the following command:
 
 ```sh
-pip install https://github.com/dusanlazic/fast/archive/refs/tags/1.0.0.tar.gz
+pip install https://github.com/dusanlazic/fast/releases/download/v1.0.0/fast-1.0.0.tar.gz
 ```
 
 ## Overview
