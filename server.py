@@ -9,7 +9,7 @@ import logging
 import functools
 from itertools import chain
 from base64 import b64decode
-from importlib import import_module
+from importlib import import_module, reload
 from datetime import datetime, timedelta
 from flask import Flask, request, send_from_directory
 from flask_httpauth import HTTPBasicAuth
@@ -33,7 +33,6 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 tick_number = -1
 tick_start = datetime.max
 server_start = datetime.max
-submit_func = None
 
 config = {
     'game': {},
@@ -82,14 +81,11 @@ def main():
     interval = game['tick_duration']
     first_run =  tick_start + delay
 
-    global submit_func
+    # Enable submitter importing
     sys.path.append(os.getcwd())
-    module = import_module(submitter['module'])
-    submit_func = getattr(module, 'submit')
 
     scheduler.add_job(
         func=submitter_wrapper,
-        args=(submit_func,),
         trigger='interval',
         seconds=interval,
         id='submitter',
@@ -469,7 +465,7 @@ def get_flag_format():
 @basic
 def trigger_submit():
     logger.info(f"Submitter triggered manually by {st.bold(request.json['player'])}.")
-    submitter_wrapper(submit_func)
+    submitter_wrapper()
 
     return {
         'message': 'Flag submission completed. Check the web dashboard.'
@@ -482,7 +478,7 @@ def dashboard():
     return send_from_directory(app.static_folder, 'index.html')
 
 
-def submitter_wrapper(submit):
+def submitter_wrapper():
     flags = [flag.value for flag in
              Flag.select().where(Flag.status == 'queued')]
 
@@ -501,7 +497,7 @@ def submitter_wrapper(submit):
 
     logger.info(st.bold(f"Submitting {len(flags)} flags..."))
 
-    accepted, rejected = submit(flags)
+    accepted, rejected = submit_func(flags)
 
     if accepted:
         logger.success(f"{st.bold(len(accepted))} flags accepted. ✅")
@@ -581,7 +577,7 @@ def tick_clock():
 
 def generate_exploit_analytics():
     tick_window = 10
-    latest_tick = tick_number  # subtract 1 to ignore last tick
+    latest_tick = tick_number
     oldest_tick = max(0, latest_tick - tick_window + 1)  # add 1 to ignore -11th tick
 
     query = Flag.select(Flag.player, Flag.exploit, Flag.tick, fn.COUNT(Flag.id).alias('flag_count')) \
@@ -623,7 +619,7 @@ def setup_database(log=True):
     except Exception as e:
         logger.error(
             f"An error occurred when connecting to the database:\n{st.color(e, 'red')}")
-        exit()
+        exit(1)
     
     db.create_tables([Flag])
     Flag.add_index(Flag.value)
@@ -642,6 +638,14 @@ def configure_flask():
 
     # Disable logs
     logging.getLogger('werkzeug').setLevel(logging.ERROR)
+
+
+def submit_func(flags):
+    module_name = config['submitter']['module']
+    imported_module = reload(import_module(module_name))  # Ensure it's always the latest one
+    imported_func = getattr(imported_module, 'submit')
+
+    return imported_func(flags)
 
 
 def load_config():
