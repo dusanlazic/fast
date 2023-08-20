@@ -7,13 +7,13 @@ To install the latest release, run the following command.
 === "Linux"
 
     ```sh
-    pip install https://github.com/dusanlazic/fast/archive/refs/tags/1.0.0.tar.gz
+    pip install https://github.com/dusanlazic/fast/releases/download/v1.0.0/fast-1.0.0.tar.gz
     ```
 
 === "Windows"
 
     ```powershell
-    pip install https://github.com/dusanlazic/fast/archive/refs/tags/1.0.0.zip
+    pip install https://github.com/dusanlazic/fast/releases/download/v1.0.0/fast-1.0.0.zip
     ```
 
 Older versions can be found on the [releases page](https://github.com/dusanlazic/fast/releases) on GitHub.
