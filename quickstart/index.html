@@ -897,7 +897,7 @@
 <h3 id="3-write-the-submitter-module">3. Write the Submitter Module<a class="headerlink" href="#3-write-the-submitter-module" title="Permanent link">&para;</a></h3>
 <p>In the same diretory, create a file named <code>submitter.py</code>. This will be a script that does the actual flag submission. To work properly with Fast, it should follow this simple guideline:</p>
 <p>The submitter script must define a function named <code>submit</code> that takes a list of flags (as string values) ready for submission. The <code>submit</code> function submits the flags and returns the responses from the flag-checking service as a tuple of two dictionaries: the first dictionary for the accepted flags and the other one for the rejected ones. The keys of the dictionaries are the flags, and the values are the corresponding responses from the flag-checking service.</p>
-<p>You can adapt the submit function to work with various flag submission mechanisms, such as submitting through a REST API, or over a raw TCP connection. See below for the examples.</p>
+<p>You can adapt the submit function to work with various flag submission mechanisms, such as submitting through a REST API, or over a raw TCP connection. See below for examples.</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">HTTP</label><label for="__tabbed_1_2">Raw TCP</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
@@ -1016,7 +1016,7 @@
 <a id="__codelineno-9-19" name="__codelineno-9-19" href="#__codelineno-9-19"></a><span class="w">    </span><span class="nt">targets</span><span class="p">:</span>
 <a id="__codelineno-9-20" name="__codelineno-9-20" href="#__codelineno-9-20"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10.1.2-11.1</span>
 </code></pre></div>
-<p>With this configuration, exploits <code>alpha.py</code>, <code>bravo.py</code> and <code>charlie.sh</code> will be ran on the specified range of targets at the beginning of each tick. Every exploit will be ran and every target will be attacked at the same time.</p>
+<p>With this configuration, exploits <code>alpha.py</code>, <code>bravo.py</code> and <code>charlie.sh</code> will be run on the specified range of targets at the beginning of each tick. Every exploit will be run and every target will be attacked at the same time.</p>
 <p>Any modifications made to the <code>exploits</code> section are automatically applied at the beginning of the next tick, ensuring a seamless integration with ongoing game activities.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
