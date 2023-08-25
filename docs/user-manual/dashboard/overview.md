@@ -1,4 +1,4 @@
-# Flag Dashboard Overview
+# Fast Dashboard Overview
 
 ![Fast Dashboard](../../assets/images/dashboard.png)
 

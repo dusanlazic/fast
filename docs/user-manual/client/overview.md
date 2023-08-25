@@ -1,4 +1,4 @@
-# Fast Client Configuration
+# Fast Client Overview
 
 ``` mermaid
     graph LR
