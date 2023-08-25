@@ -1,3 +1,5 @@
+# Fast Client Configuration
+
 ``` mermaid
     graph LR
 

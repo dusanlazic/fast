@@ -1,3 +1,5 @@
+# Flag Dashboard Overview
+
 ![Fast Dashboard](../../assets/images/dashboard.png)
 
 Fast comes with an intuitive web interface for monitoring and evaulating the performance of all running exploits during an A/D competition. You can track your exploits' performance in real-time, browse the flags using a simple yet flexible query language, and submit new flags manually.

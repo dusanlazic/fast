@@ -65,14 +65,11 @@ exploits:
 
 
 ```python
-from typing import List
-
-def exploit(target: str) -> List[str]:
-    flags = []
-
+def exploit(target: str) -> str:
+  
     # Exploit the target, get the flags
 
-    return flags
+    return text_containing_flags
 ```
 
 ```python
@@ -97,7 +94,7 @@ def submit(flags: List[str]) -> Tuple[Dict[str, str], Dict[str, str]]:
 
 ### Pressure-Friendly Query Language
 
-Here are the examples of some actual queries. Basically, anything you write will likely work.
+Here are examples of some actual queries. Basically, anything you write will likely work.
 
 ```
 player is alice

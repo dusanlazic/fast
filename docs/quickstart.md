@@ -47,7 +47,7 @@ In the same diretory, create a file named `submitter.py`. This will be a script 
 
 The submitter script must define a function named `submit` that takes a list of flags (as string values) ready for submission. The `submit` function submits the flags and returns the responses from the flag-checking service as a tuple of two dictionaries: the first dictionary for the accepted flags and the other one for the rejected ones. The keys of the dictionaries are the flags, and the values are the corresponding responses from the flag-checking service.
 
-You can adapt the submit function to work with various flag submission mechanisms, such as submitting through a REST API, or over a raw TCP connection. See below for the examples.
+You can adapt the submit function to work with various flag submission mechanisms, such as submitting through a REST API, or over a raw TCP connection. See below for examples.
 
 === "HTTP"
 
@@ -202,7 +202,7 @@ exploits:
       - 10.1.2-11.1
 ```
 
-With this configuration, exploits `alpha.py`, `bravo.py` and `charlie.sh` will be ran on the specified range of targets at the beginning of each tick. Every exploit will be ran and every target will be attacked at the same time.
+With this configuration, exploits `alpha.py`, `bravo.py` and `charlie.sh` will be run on the specified range of targets at the beginning of each tick. Every exploit will be run and every target will be attacked at the same time.
 
 Any modifications made to the `exploits` section are automatically applied at the beginning of the next tick, ensuring a seamless integration with ongoing game activities.
 

@@ -9,7 +9,7 @@ The `submit` function returns a tuple of two dictionaries:
 1. **Accepted Flags**: A dictionary containing the flags that were accepted by the service, with the flag as the key and the corresponding response as the value.
 2. **Rejected Flags**: A dictionary containing the flags that were rejected by the service, with the flag as the key and the corresponding response as the value.
 
-You can adapt the submit function to work with various flag submission mechanisms, such as submitting through a REST API, or over a raw TCP connection. See below for the examples.
+You can adapt the submit function to work with various flag submission mechanisms, such as submitting through a REST API, or over a raw TCP connection. See below for examples.
 
 === "HTTP"
 
@@ -23,7 +23,7 @@ You can adapt the submit function to work with various flag submission mechanism
         return accepted_flags, rejected_flags
     ```
 
-=== "netcat"
+=== "Raw TCP"
 
     ```python
     from pwn import *
