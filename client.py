@@ -262,7 +262,7 @@ def setup_handler(fire_mode=False):
 
 
 def banner():
-    vers = '1.0.0'
+    vers = '1.1.0-balccon'
     print(f"""
 \033[34;1m     .___    ____\033[0m    ______         __ 
 \033[34;1m    /   /\__/   /\033[0m   / ____/_  ____ / /_  
