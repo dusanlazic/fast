@@ -31,8 +31,8 @@ auth = HTTPBasicAuth()
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 tick_number = -1
-tick_start = datetime.max
-server_start = datetime.max
+tick_start = None
+game_start = None
 
 config = {
     'game': {},
@@ -60,11 +60,12 @@ def main():
     configure_flask()
     load_config()
     setup_database()
-    recover()
 
     game, submitter, server = config['game'], config['submitter'], config['server']
 
     # Schedule tick clock
+
+    update_tick_clock()
 
     scheduler = BackgroundScheduler()
     scheduler.add_job(
@@ -194,7 +195,7 @@ def enqueue_fallback():
         target = flag['target']
         player = flag['player']
         timestamp = flag.get('timestamp', None)
-        tick = int((datetime.fromtimestamp(timestamp) - server_start).total_seconds() // config['game']['tick_duration']) if timestamp else tick_number
+        tick = int((datetime.fromtimestamp(timestamp) - game_start).total_seconds() // config['game']['tick_duration']) if timestamp else tick_number
 
         try:
             with db.atomic():
@@ -319,7 +320,10 @@ def sync():
     submit_delay = config['submitter']['delay']
 
     elapsed = (now - tick_start).total_seconds()
-    remaining = duration - elapsed
+    if elapsed > 0:
+        remaining = duration - elapsed
+    else:
+        remaining = -elapsed
 
     next_submit: datetime = tick_start + timedelta(seconds=submit_delay + (duration if elapsed > submit_delay else 0))
     next_submit_remaining = (next_submit - now).total_seconds()
@@ -649,6 +653,13 @@ def submit_func(flags):
 
 
 def load_config():
+    # Remove datetime resolver
+    # https://stackoverflow.com/a/52312810
+    yaml.SafeLoader.yaml_implicit_resolvers = {
+        k: [r for r in v if r[0] != 'tag:yaml.org,2002:timestamp'] for
+        k, v in yaml.SafeLoader.yaml_implicit_resolvers.items()
+    }
+
     # Load server.yaml
     if not os.path.isfile('server.yaml'):
         logger.error(f"{st.bold('server.yaml')} not found in the current working directory. Exiting...")
@@ -681,31 +692,49 @@ def load_config():
     logger.info(f'Server will run at {st.color(conn_str, "cyan")}.')
 
 
-def recover():
-    global tick_start, tick_number, server_start
+def update_tick_clock():
+    global tick_start, tick_number, game_start
 
-    if os.path.isfile(RECOVERY_CONFIG_PATH):
+    now = datetime.now()
+    tick_duration = timedelta(seconds=config['game']['tick_duration'])
+
+    if config['game'].get('start'):
+        game_start_str = config['game'].get('start')
+        if len(game_start_str) == 19:
+            datetime_format = "%Y-%m-%d %H:%M:%S"
+        else:
+            datetime_format = "%Y-%m-%d %H:%M"
+
+        game_start = datetime.strptime(game_start_str, datetime_format)
+    elif os.path.isfile(RECOVERY_CONFIG_PATH):
         with open(RECOVERY_CONFIG_PATH) as file:
             recovery_data = json.loads(file.read())
-        
-        now = datetime.now()
-        server_start = datetime.fromtimestamp(float(recovery_data['started']))
-        tick_duration = timedelta(seconds=config['game']['tick_duration'])
 
-        ticks_passed = (now - server_start) // tick_duration
-        into_tick = (now - server_start) % tick_duration
-
-        tick_start = now + tick_duration - into_tick
-        tick_number = ticks_passed
-
-        logger.info(f"Continuing from tick {st.bold(tick_number)}. Tick scheduled for {st.bold(tick_start.strftime('%H:%M:%S'))}. ⏱️")
-        logger.info(f"To reset Fast and run from tick 0, run {st.bold('reset')} and rerun.")
+        game_start = datetime.fromtimestamp(float(recovery_data['started']))
     else:
-        tick_start = server_start = datetime.now() + timedelta(seconds=0.5)
+        game_start = now
         with open(RECOVERY_CONFIG_PATH, 'w') as file:
             file.write(json.dumps({
-                'started': tick_start.timestamp(),
+                'started': game_start.timestamp(),
             }))
+
+    if game_start < now:
+        tick_number = (now - game_start) // tick_duration
+
+        into_tick = (now - game_start) % tick_duration
+        tick_start = now + tick_duration - into_tick
+
+        logger.info(f"Tick clock will continue from tick {st.bold(tick_number + 1)}. Tick scheduled for {st.bold(tick_start.strftime('%H:%M:%S'))}. ⏱️")
+    elif game_start == now:
+        tick_number = -1
+        tick_start = now
+
+        logger.info(f"Tick clock started from tick 0.")
+    elif game_start > now:
+        tick_number = -1
+        tick_start = game_start
+
+        logger.info(f"Game has not started yet. Tick 0 scheduled for {st.bold(tick_start.strftime('%H:%M:%S'))}. ⏱️")
 
 
 def banner():

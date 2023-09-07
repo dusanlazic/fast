@@ -170,6 +170,10 @@ game_schema = {
                 {"type": "array", "items": {"type": "string", "format": "hostname"}},
             ]
         },
+        "start": {
+            "type": "string",
+            "pattern": "^\d{4}-\d{2}-\d{2} \d{2}:\d{2}(:\d{2})?$"
+        }
     },
     "required": ["tick_duration", "flag_format", "team_ip"],
     "additionalProperties": False,

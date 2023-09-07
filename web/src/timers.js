@@ -32,13 +32,27 @@ export const timers = reactive({
       this.submitter.start -= this.tick.duration
     }
 
-    this.updateTimers()
+    if (syncData.tick.remaining > syncData.tick.duration) {
+      this.updateTimersBeforeStart()
+    } else {
+      this.updateTimers()
+    }
   },
   async updateTimers() {
     this.tick.elapsed = (performance.now() - this.tick.start) % this.tick.duration
     this.submitter.elapsed = (performance.now() - this.submitter.start) % this.tick.duration
     
     requestAnimationFrame(() => this.updateTimers())
+  },
+  async updateTimersBeforeStart() {
+    this.tick.elapsed = (performance.now() - this.tick.start)
+    this.submitter.elapsed = (performance.now() - this.submitter.start)
+
+    if (this.tick.elapsed < 0) {
+      requestAnimationFrame(() => this.updateTimersBeforeStart())
+    } else {
+      requestAnimationFrame(() => this.updateTimers())
+    }
   },
   tickSecondsRemaining: computed(() =>
     Math.ceil((timers.tick.duration - timers.tick.elapsed) / 1000)
