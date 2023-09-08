@@ -73,7 +73,7 @@ connect_schema = {
         },
         "port": {
             "type": "integer",
-            "minimum": 1024,
+            "minimum": 1,
             "maximum": 65535
         },
         "player": {
@@ -195,7 +195,7 @@ server_schema = {
     "type": "object",
     "properties": {
         "host": {"type": "string", "format": "hostname"},
-        "port": {"type": "integer", "minimum": 1024, "maximum": 65535},
+        "port": {"type": "integer", "minimum": 1, "maximum": 65535},
         "password": {"type": "string"}
     },
     "additionalProperties": False,
@@ -209,7 +209,7 @@ database_schema = {
         "user": {"type": "string"},
         "password": {"type": "string"},
         "host": {"type": "string", "format": "hostname"},
-        "port": {"type": "integer", "minimum": 1024, "maximum": 65535},
+        "port": {"type": "integer", "minimum": 1, "maximum": 65535},
     },
     "additionalProperties": False,
 }
