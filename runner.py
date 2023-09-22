@@ -10,6 +10,7 @@ from util.helpers import truncate
 from importlib import import_module
 from handler import SubmitClient
 from models import Batching
+from util.hosts import wrap
 from util.styler import TextStyler as st
 from util.log import logger, log_error, log_warning
 
@@ -78,7 +79,7 @@ def main(args):
 
 def exploit_wrapper(exploit_func, target):
     try:
-        response_text = exploit_func(target)
+        response_text = exploit_func(wrap(target))
         found_flags = match_flags(response_text)
 
         if found_flags:

@@ -12,7 +12,8 @@ from handler import SubmitClient
 from util.styler import TextStyler as st
 from util.helpers import seconds_from_now
 from util.log import logger, create_log_dir
-from util.validation import validate_data, validate_targets, connect_schema, exploits_schema
+from util.validation import validate_data, validate_delay, validate_targets, connect_schema, exploits_schema
+from util.hosts import process_targets
 from requests.exceptions import HTTPError, ConnectionError, Timeout, RequestException
 from apscheduler.schedulers.background import BlockingScheduler
 
@@ -126,7 +127,7 @@ def load_exploits():
                 logger.warning(f"{st.bold('exploits')} section contains no exploits. Please add your exploits to start running them in the next tick.")
                 return
 
-            if not validate_data(exploits_data, exploits_schema, custom=validate_targets):
+            if not validate_data(exploits_data, exploits_schema, custom=[validate_targets, validate_delay]):
                 if cached_exploits[1]:
                     logger.error(
                     f"Errors found in 'exploits' section in {st.bold('fast.yaml')}. The previous configuration will be reused in the following tick.")
@@ -152,20 +153,13 @@ def load_exploits():
             return cached_exploits[1]
 
 
-def expand_ip_range(ip_range):
-    octets = ip_range.split('.')
-    ranges = [list(range(int(octet.split('-')[0]), int(octet.split('-')[1]) + 1))
-              if '-' in octet else [int(octet)] for octet in octets]
-    return ['.'.join(map(str, octets)) for octets in product(*ranges)]
-
-
 def parse_exploit_entry(entry):
     name = entry.get('name')
     run = entry.get('run')
     prepare = entry.get('prepare')
     cleanup = entry.get('cleanup')
     module = None if run else (entry.get('module') or name).replace('.py', '')
-    targets = [ip for ip_range in entry['targets'] for ip in expand_ip_range(ip_range)]
+    targets = process_targets(entry['targets'])
     timeout = entry.get('timeout')
     env = entry.get('env') or {}
     delay = entry.get('delay')
@@ -262,7 +256,7 @@ def setup_handler(fire_mode=False):
 
 
 def banner():
-    vers = '1.1.0-balccon'
+    vers = '1.1.0-faust'
     print(f"""
 \033[34;1m     .___    ____\033[0m    ______         __ 
 \033[34;1m    /   /\__/   /\033[0m   / ____/_  ____ / /_  

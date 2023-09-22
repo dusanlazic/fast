@@ -738,7 +738,7 @@ def update_tick_clock():
 
 
 def banner():
-    vers = '1.1.0-balccon'
+    vers = '1.1.0-faust'
     print(f"""
 \033[32;1m     .___    ____\033[0m    ______         __ 
 \033[32;1m    /   /\__/   /\033[0m   / ____/_  ____ / /_  

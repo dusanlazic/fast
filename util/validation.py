@@ -1,4 +1,7 @@
+import re
+import ipaddress
 from jsonschema import validate, ValidationError
+from util.hosts import explode_ipv6_range, IPV4_PATTERN
 from util.styler import TextStyler as st
 from util.log import logger
 
@@ -7,8 +10,10 @@ def validate_data(data, schema, custom=None):
     try:
         validate(instance=data, schema=schema)
 
-        if custom:
+        if callable(custom):
             custom(data)
+        elif isinstance(custom, list) and all(callable(func) for func in custom):
+            (func(data) for func in custom)
 
         return True
     except ValidationError as e:
@@ -20,37 +25,83 @@ def validate_data(data, schema, custom=None):
 def validate_targets(exploits):
     for exploit_idx, exploit in enumerate(exploits):
         for target_idx, target in enumerate(exploit['targets']):
-            if not validate_ip_range(target):
-                raise ValidationError(f"Target '{st.bold(target)}' in exploit '{st.bold(exploit['name'])}' is not a valid IP or IP range.",
+            if not validate_target(target):
+                raise ValidationError(f"Target '{st.bold(target)}' in exploit '{st.bold(exploit['name'])}' is not a valid IP, IP range or hostname.",
                                       path=['exploits', exploit_idx, 'targets', target_idx])
 
 
-def validate_quartet(quartet):
-    return quartet.isdigit() and 0 <= int(quartet) <= 255
+def validate_target(target_entry):
+    # Single IPv4 or IPv6
+    try:
+        ipaddress.ip_address(target_entry)
+        return True
+    except ValueError:
+        pass
+    # IPv4 range
+    if re.match(IPV4_PATTERN, target_entry):
+        return validate_ipv4_range(target_entry)
+    # IPv6 range
+    if ':' in target_entry:
+        return validate_ipv6_range(target_entry)
+    # Hostname
+    return validate_hostname(target_entry)
 
+# IPv4 validations
 
-def validate_ip(ip):
-    quartets = ip.split(".")
-
-    return len(quartets) == 4 and all(validate_quartet(quartet) for quartet in quartets)
-
-
-def validate_range_quartet(quartet):
-    if "-" in quartet:
-        start, end = quartet.split("-")
+def validate_octet_range(octet):
+    if "-" in octet:
+        start, end = octet.split("-")
         return start.isdigit() and end.isdigit() and 0 <= int(start) <= int(end) <= 255
     else:
-        return validate_quartet(quartet)
+        return octet.isdigit() and 0 <= int(octet) <= 255
 
 
-def validate_ip_range(ip_range):
-    if not '-' in ip_range:
-        return validate_ip(ip_range)
+def validate_ipv4_range(ip_range):
+    octets = ip_range.split(".")
 
-    quartets = ip_range.split(".")
+    return len(octets) == 4 and all(validate_octet_range(octet) for octet in octets)
 
-    return len(quartets) == 4 and all(validate_range_quartet(quartet) for quartet in quartets)
+# IPv6 validations
 
+def validate_hextet_range(hextet):
+    if "-" in hextet:
+        start, end = hextet.split("-")
+        try:
+            start_value, end_value = int(start, 16), int(end, 16)
+            return 0 <= start_value <= end_value <= 0xFFFF
+        except ValueError:
+            return False
+    else:
+        try:
+            value = int(hextet, 16)
+            return 0 <= value <= 0xFFFF
+        except ValueError:
+            return False
+
+
+def validate_ipv6_range(ip_range):
+    ip_range = explode_ipv6_range(ip_range)
+    hextets = ip_range.split(":")
+    
+    return len(hextets) == 8 and all(validate_hextet_range(hextet) for hextet in hextets)
+
+# Hostname validatoin
+
+def validate_hostname(hostname):
+    if hostname[-1] == ".":
+        hostname = hostname[:-1]
+    if len(hostname) > 253:
+        return False
+
+    labels = hostname.split(".")
+
+    if re.match(r"[0-9]+$", labels[-1]):
+        return False
+
+    allowed = re.compile(r"(?!-)[a-z0-9-]{1,63}(?<!-)$", re.IGNORECASE)
+    return all(allowed.match(label) for label in labels)
+
+# Other validations
 
 def validate_delay(server_yaml_data):
     tick_duration = server_yaml_data['game']['tick_duration']
@@ -138,8 +189,7 @@ exploit_schema = {
         "targets": {
             "type": "array",
             "items": {
-                "type": "string",
-                "format": "hostname"
+                "type": "string"
             }
         },
     },
