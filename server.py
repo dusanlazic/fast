@@ -1,10 +1,12 @@
 from gevent import monkey
 monkey.patch_all()
+import re
 import os
 import sys
 import json
 import yaml
 import time
+import uuid
 import logging
 import functools
 from itertools import chain
@@ -16,10 +18,12 @@ from flask_httpauth import HTTPBasicAuth
 from flask_socketio import SocketIO, emit
 from flask_cors import CORS
 from apscheduler.schedulers.background import BackgroundScheduler
-from models import Flag
+from models import Flag, Webhook
+from secrets import token_hex
 from dsl import parse_query, build_query
-from peewee import fn, IntegrityError, PostgresqlDatabase
+from peewee import fn, IntegrityError, PostgresqlDatabase, DoesNotExist
 from database import db
+from playhouse.shortcuts import model_to_dict
 from util.log import logger
 from util.styler import TextStyler as st
 from util.helpers import truncate, deep_update, flag_model_to_dict
@@ -476,6 +480,108 @@ def trigger_submit():
     }
 
 
+@app.route('/webhooks')
+@basic
+def get_webhooks():
+    try:
+        results = [model_to_dict(webhook) for webhook in 
+            Webhook.select().order_by(Webhook.exploit)
+        ]
+
+        metadata = {
+            "total": len(results)
+        }
+
+        return {
+            'results': results,
+            'metadata': metadata
+        }
+    except Exception:
+        return {
+            'error': f'Failed to fetch webhooks.'
+        }, 500
+
+
+@app.route('/webhooks', methods=['POST'])
+@basic
+def create_webhook():
+    try:
+        data = request.json
+        exploit = data.get('exploit', token_hex(4))
+        player = data.get('player', 'anon')
+        new_webhook = Webhook.create(id=uuid.uuid4(), exploit=exploit, player=player)
+        return {'id': str(new_webhook.id)}, 201
+    except Exception as e:
+        return {'error': f'Failed to create webhook: {str(e)}'}, 500
+
+
+@app.route('/webhooks/<string:webhook_id>', methods=['PUT'])
+@basic
+def update_webhook(webhook_id):
+    try:
+        data = request.json
+        webhook = Webhook.get_by_id(uuid.UUID(webhook_id))
+
+        if 'exploit' in data:
+            webhook.exploit = data['exploit']
+        if 'player' in data:
+            webhook.player = data['player']
+        if 'disabled' in data:
+            webhook.disabled = data['disabled']
+
+        webhook.save()
+
+        return {'id': str(webhook.id), 'message': 'Webhook updated successfully'}, 200
+    except DoesNotExist:
+        return {'error': 'Webhook not found'}, 404
+    except Exception as e:
+        return {'error': f'Failed to update webhook: {str(e)}'}, 500
+
+
+@app.route('/<string:webhook_id>', methods=['GET', 'POST', 'PUT'])
+def exfiltrate(webhook_id):
+    try:
+        webhook = Webhook.get((Webhook.id == uuid.UUID(webhook_id)) & (Webhook.disabled == False))
+        
+        contains_flags = request.get_data(as_text=True)
+        flags = re.findall(config['game']['flag_format'], contains_flags)
+        if not flags:
+            return '', 204
+
+        target = request.args.get('target', 'unknown')
+        exploit = webhook.exploit
+        player = webhook.player
+
+        new_flags = []
+        duplicate_flags = []
+
+        for flag_value in flags:
+            try:
+                with db.atomic():
+                    Flag.create(value=flag_value, exploit=exploit, target=target, 
+                                tick=tick_number, player=player, status='queued')
+                new_flags.append(flag_value)
+            except IntegrityError:
+                duplicate_flags.append(flag_value)
+        
+        if new_flags:
+            logger.success(f"{st.bold(player)} exfiltrated " +
+                        (f"{st.bold(1)} flag " if len(new_flags) == 1 else f"{st.bold(len(new_flags))} flags ") + 
+                        f"from {st.bold(target)} using {st.bold(exploit)}. 🚩  — {st.faint(truncate(' '.join(new_flags), 50))}")
+
+        socketio.emit('enqueue', {
+            'new': len(new_flags),
+            'dup': len(duplicate_flags),
+            'player': player,
+            'target': target,
+            'exploit': exploit
+        })
+
+        return '', 204
+    except Exception:
+        return '', 404
+
+
 @app.route('/')
 @basic
 def dashboard():
@@ -625,7 +731,7 @@ def setup_database(log=True):
             f"An error occurred when connecting to the database:\n{st.color(e, 'red')}")
         exit(1)
     
-    db.create_tables([Flag])
+    db.create_tables([Flag, Webhook])
     Flag.add_index(Flag.value)
     
     if log:

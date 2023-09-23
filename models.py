@@ -1,5 +1,5 @@
 from collections import namedtuple
-from peewee import CharField, DateTimeField, IntegerField, Check
+from peewee import CharField, DateTimeField, IntegerField, UUIDField, BooleanField, Check
 from datetime import datetime
 from database import BaseModel, FallbackBaseModel
 
@@ -12,6 +12,13 @@ class Flag(BaseModel):
     timestamp = DateTimeField(default=datetime.now)
     status = CharField(constraints=[Check("status IN ('queued', 'accepted', 'rejected')")])
     response = CharField(null=True)
+
+
+class Webhook(BaseModel):
+    id = UUIDField(primary_key=True)
+    exploit = CharField()
+    player = CharField()
+    disabled = BooleanField(default=False)
 
 
 class FallbackFlag(FallbackBaseModel):
