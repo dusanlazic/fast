@@ -92,7 +92,7 @@ function getExploitsList() {
         <div class="card-content">
           <p v-if="counters.store.submitting" class="subtitle">
             <Icon icon="ri:send-plane-fill" inline="true" />
-            <span> Submitting</span>
+            <span> Submitting <span class="has-text-grey-light">{{ counters.store.submitting }}</span></span>
           </p>
           <p v-else class="subtitle">
             <Icon icon="ri:check-line" inline="true" />

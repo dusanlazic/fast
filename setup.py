@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="fast",
-    version="1.1.0-faust",
+    version="1.1.0",
     description="Flag Acquisition and Submission Tool ─ Easily manage your exploits in A/D competitions",
     author="Dušan Lazić",
     author_email="lazicdusan1104@gmail.com",

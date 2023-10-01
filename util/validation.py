@@ -13,7 +13,7 @@ def validate_data(data, schema, custom=None):
         if callable(custom):
             custom(data)
         elif isinstance(custom, list) and all(callable(func) for func in custom):
-            (func(data) for func in custom)
+            [func(data) for func in custom]
 
         return True
     except ValidationError as e:
@@ -104,11 +104,25 @@ def validate_hostname(hostname):
 # Other validations
 
 def validate_delay(server_yaml_data):
+    if server_yaml_data['submitter'].get('delay') is None:
+        return
+
     tick_duration = server_yaml_data['game']['tick_duration']
     delay = server_yaml_data['submitter']['delay']
 
     if delay >= tick_duration:
         raise ValidationError(f"Submitter delay ({delay}s) takes longer than the tick itself ({tick_duration}s).", path=['submitter', 'delay'])
+
+
+def validate_interval(server_yaml_data):
+    if server_yaml_data['submitter'].get('interval') is None:
+        return
+
+    interval = server_yaml_data['submitter']['interval']
+    duration = server_yaml_data['game']['tick_duration']
+
+    if duration % interval != 0:
+        raise ValidationError(f"Submitter interval ({interval}s) must divide tick duration ({duration}s).", path=['submitter', 'interval'])
 
 
 connect_schema = {
@@ -234,9 +248,13 @@ submitter_schema = {
     "type": "object",
     "properties": {
         "delay": {"type": "number", "exclusiveMinimum": 0},
+        "interval": {"type": "number", "exclusiveMinimum": 0},
         "module": {"type": "string"},
     },
-    "required": ["delay"],
+    "oneOf": [
+        {"required": ["delay"]},
+        {"required": ["interval"]}
+    ],
     "additionalProperties": False,
 }
 

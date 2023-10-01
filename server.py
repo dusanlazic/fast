@@ -27,7 +27,7 @@ from playhouse.shortcuts import model_to_dict
 from util.log import logger
 from util.styler import TextStyler as st
 from util.helpers import truncate, deep_update, flag_model_to_dict
-from util.validation import validate_data, validate_delay, server_yaml_schema
+from util.validation import validate_data, validate_delay, validate_interval, server_yaml_schema
 from pyparsing.exceptions import ParseException
 
 app = Flask(__name__, static_url_path='')
@@ -82,9 +82,15 @@ def main():
 
     # Schedule flag submitting
 
-    delay = timedelta(seconds=submitter['delay'])
-    interval = game['tick_duration']
-    first_run =  tick_start + delay
+    if submitter.get('delay'):
+        delay = timedelta(seconds=submitter['delay'])
+        interval = game['tick_duration']
+        first_run =  tick_start + delay
+    elif submitter.get('interval'):
+        interval = submitter['interval']
+        now = datetime.now()
+        elapsed = (now - tick_start).total_seconds()
+        first_run = now + timedelta(seconds=elapsed // interval * interval + interval - elapsed)
 
     # Enable submitter importing
     sys.path.append(os.getcwd())
@@ -321,21 +327,27 @@ def sync():
     now: datetime = datetime.now()
     
     duration = config['game']['tick_duration']
-    submit_delay = config['submitter']['delay']
-
     elapsed = (now - tick_start).total_seconds()
     if elapsed > 0:
         remaining = duration - elapsed
     else:
         remaining = -elapsed
 
-    next_submit: datetime = tick_start + timedelta(seconds=submit_delay + (duration if elapsed > submit_delay else 0))
+    delay = config['submitter'].get('delay')
+    interval = config['submitter'].get('interval')
+
+    if delay is not None:
+        next_submit: datetime = tick_start + timedelta(seconds=delay + (duration if elapsed > delay else 0))
+    elif interval:
+        next_submit: datetime = now + timedelta(seconds=elapsed // interval * interval + interval - elapsed)
+
     next_submit_remaining = (next_submit - now).total_seconds()
 
     return {
         'submitter': {
+            'elapsed': (interval or delay) - next_submit_remaining,
             'remaining': next_submit_remaining,
-            'delay': submit_delay
+            'interval': interval or delay
         },
         'tick': {
             'current': tick_number,
@@ -596,13 +608,17 @@ def submitter_wrapper():
         socketio.emit('submitSkip', {
             'message': 'No flags in the queue! Submission skipped.'
         })
+        socketio.emit('analyticsUpdate', generate_exploit_analytics())
 
         logger.info(f"No flags in the queue! Submission skipped.")
 
         return
 
     socketio.emit('submitStart', {
-        'message': f'Submitting {len(flags)} flags...'
+        'message': f'Submitting {len(flags)} flags...',
+        'data': {
+            'count': len(flags)
+        }
     })
 
     logger.info(st.bold(f"Submitting {len(flags)} flags..."))
@@ -779,7 +795,7 @@ def load_config():
         exit(1)
 
     # Load and validate server config
-    if not validate_data(yaml_data, server_yaml_schema, custom=validate_delay):
+    if not validate_data(yaml_data, server_yaml_schema, custom=[validate_delay, validate_interval]):
         logger.error(f"Fix errors in {st.bold('server.yaml')} and rerun.")
         exit(1)
 
@@ -844,7 +860,7 @@ def update_tick_clock():
 
 
 def banner():
-    vers = '1.1.0-faust'
+    vers = '1.1.0-dev'
     print(f"""
 \033[32;1m     .___    ____\033[0m    ______         __ 
 \033[32;1m    /   /\__/   /\033[0m   / ____/_  ____ / /_  

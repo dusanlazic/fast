@@ -11,12 +11,12 @@ socket.on('enqueue_fallback', function (msg) {
   counters.increment_fallback(msg)
 })
 
-socket.on('submitStart', function () {
-  counters.store.submitting = true
+socket.on('submitStart', function (msg) {
+  counters.store.submitting = msg.data.count
 })
 
 socket.on('submitComplete', function (msg) {
-  counters.store.submitting = false
+  counters.store.submitting = 0
   counters.updateStoreStats(msg)
 })
 
@@ -39,7 +39,7 @@ export const counters = reactive({
       accepted: 0,
       rejected: 0
     },
-    submitting: false
+    submitting: 0
   },
   async initialize() {
     const data = await api.getFlagStoreStats()

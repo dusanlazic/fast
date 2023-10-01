@@ -12,7 +12,7 @@ from handler import SubmitClient
 from util.styler import TextStyler as st
 from util.helpers import seconds_from_now
 from util.log import logger, create_log_dir
-from util.validation import validate_data, validate_delay, validate_targets, connect_schema, exploits_schema
+from util.validation import validate_data, validate_targets, connect_schema, exploits_schema
 from util.hosts import process_targets
 from requests.exceptions import HTTPError, ConnectionError, Timeout, RequestException
 from apscheduler.schedulers.background import BlockingScheduler
@@ -26,7 +26,7 @@ handler: SubmitClient = None
 connect = {
     'protocol': 'http',
     'host': '127.0.0.1',
-    'port': '2023',
+    'port': 2023,
     'player': 'anon'
 }
 
@@ -127,7 +127,7 @@ def load_exploits():
                 logger.warning(f"{st.bold('exploits')} section contains no exploits. Please add your exploits to start running them in the next tick.")
                 return
 
-            if not validate_data(exploits_data, exploits_schema, custom=[validate_targets, validate_delay]):
+            if not validate_data(exploits_data, exploits_schema, custom=validate_targets):
                 if cached_exploits[1]:
                     logger.error(
                     f"Errors found in 'exploits' section in {st.bold('fast.yaml')}. The previous configuration will be reused in the following tick.")
@@ -256,7 +256,7 @@ def setup_handler(fire_mode=False):
 
 
 def banner():
-    vers = '1.1.0-faust'
+    vers = '1.1.0-dev'
     print(f"""
 \033[34;1m     .___    ____\033[0m    ______         __ 
 \033[34;1m    /   /\__/   /\033[0m   / ____/_  ____ / /_  

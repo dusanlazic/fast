@@ -197,14 +197,10 @@ function getStatusElements(exploit) {
   }
 
   if (exploit.currentTick.pinged === true) {
-    if (exploit.currentTick.accepted === null) {
-      return ["ri:check-line", 'Exploit is up']
-    }
     if (exploit.currentTick.accepted === true) {
       return ["ri:check-double-fill", 'Flags accepted']
-    }
-    if (exploit.currentTick.accepted === false) {
-      return ["ri:error-warning-line", 'No flags accepted']
+    } else {
+      return ["ri:check-line", 'Exploit is up']
     }
   }
 }

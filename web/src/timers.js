@@ -15,22 +15,19 @@ export const timers = reactive({
   },
   submitter: {
     start: 0,
-    delay: 0,
+    interval: 0,
     elapsed: 0
   },
   async initialize() {
     const syncData = await api.getTimersData();
+    let now = performance.now()
 
     this.tick.duration = syncData.tick.duration * 1000
     this.tick.elapsed = syncData.tick.elapsed * 1000
-    this.submitter.delay = syncData.submitter.delay * 1000
+    this.tick.start = now - this.tick.elapsed
 
-    this.tick.start = performance.now() - this.tick.elapsed
-    this.submitter.start = this.tick.start + this.submitter.delay
-
-    if (this.tick.elapsed < this.submitter.delay) {
-      this.submitter.start -= this.tick.duration
-    }
+    this.submitter.interval = syncData.submitter.interval * 1000
+    this.submitter.start = now - syncData.submitter.elapsed * 1000
 
     if (syncData.tick.remaining > syncData.tick.duration) {
       this.updateTimersBeforeStart()
@@ -39,14 +36,16 @@ export const timers = reactive({
     }
   },
   async updateTimers() {
-    this.tick.elapsed = (performance.now() - this.tick.start) % this.tick.duration
-    this.submitter.elapsed = (performance.now() - this.submitter.start) % this.tick.duration
+    let now = performance.now()
+    this.tick.elapsed = (now - this.tick.start) % this.tick.duration
+    this.submitter.elapsed = (now - this.submitter.start) % this.submitter.interval
     
     requestAnimationFrame(() => this.updateTimers())
   },
   async updateTimersBeforeStart() {
-    this.tick.elapsed = (performance.now() - this.tick.start)
-    this.submitter.elapsed = (performance.now() - this.submitter.start)
+    let now = performance.now()
+    this.tick.elapsed = (now - this.tick.start)
+    this.submitter.elapsed = (now - this.submitter.start) % this.submitter.interval
 
     if (this.tick.elapsed < 0) {
       requestAnimationFrame(() => this.updateTimersBeforeStart())
@@ -58,6 +57,6 @@ export const timers = reactive({
     Math.ceil((timers.tick.duration - timers.tick.elapsed) / 1000)
   ),
   submitSecondsRemaining: computed(() =>
-    Math.ceil((timers.tick.duration - timers.submitter.elapsed) / 1000)
+    Math.ceil((timers.submitter.interval - timers.submitter.elapsed) / 1000)
   )
 })
