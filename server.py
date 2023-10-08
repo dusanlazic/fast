@@ -162,17 +162,18 @@ def enqueue():
     target = request.json['target']
     player = request.json['player']
 
-    new_flags = []
-    duplicate_flags = []
+    with db.connection_context():
+        duplicate_flags = [flag.value for flag in
+                           Flag.select(Flag.value)
+                           .where(Flag.value.in_(flags))]
 
-    for flag_value in flags:
-        try:
-            with db.atomic():
-                Flag.create(value=flag_value, exploit=exploit, target=target,
-                            tick=tick_number, player=player, status='queued')
-            new_flags.append(flag_value)
-        except IntegrityError:
-            duplicate_flags.append(flag_value)
+        flags_to_insert = [{'value': flag_value, 'exploit': exploit, 'target': target,
+                            'tick': tick_number, 'player': player, 'status': 'queued'}
+                           for flag_value in flags if flag_value not in duplicate_flags]
+
+        Flag.insert_many(flags_to_insert).on_conflict_ignore().execute()
+
+    new_flags = [flag['value'] for flag in flags_to_insert]
 
     if new_flags:
         logger.success(f"{st.bold(player)} retrieved " +
@@ -211,7 +212,7 @@ def enqueue_fallback():
                    config['game']['tick_duration']) if timestamp else tick_number
 
         try:
-            with db.atomic():
+            with db.connection_context():
                 Flag.create(value=flag_value, exploit=exploit, target=target,
                             tick=tick, player=player, status='queued')
             new_flags.append(flag_value)
@@ -246,7 +247,7 @@ def enqueue_manual():
 
         for flag_value in flags:
             try:
-                with db.atomic():
+                with db.connection_context():
                     new_flag = Flag.create(value=flag_value, tick=tick_number, player=player,
                                            exploit='manual', target='unknown', status='queued')
                 new_flags.append(new_flag)
@@ -273,7 +274,7 @@ def enqueue_manual():
 
         for value, response in accepted.items():
             try:
-                with db.atomic():
+                with db.connection_context():
                     flag = Flag.create(value=value, tick=tick_number, player=player,
                                        exploit='manual', target='unknown', status='accepted', response=response)
                 accepted_flags.append(flag)
@@ -283,13 +284,13 @@ def enqueue_manual():
 
         for value, response in rejected.items():
             try:
-                with db.atomic():
+                with db.connection_context():
                     flag = Flag.create(value=value, tick=tick_number, player=player,
                                        exploit='manual', target='unknown', status='rejected', response=response)
                 rejected_flags.append(flag)
             except IntegrityError:
                 rejected_flags.append(
-                    Flag(value=value, status='accepted', response=response))
+                    Flag(value=value, status='rejected', response=response))
 
         return [
             {
@@ -369,14 +370,15 @@ def sync():
 @app.route('/flagstore-stats')
 @basic
 def get_flagstore_stats():
-    queued_count = Flag.select().where(Flag.status == 'queued').count()
-    accepted_count = Flag.select().where(Flag.status == 'accepted').count()
-    rejected_count = Flag.select().where(Flag.status == 'rejected').count()
+    with db.connection_context():
+        queued_count = Flag.select().where(Flag.status == 'queued').count()
+        accepted_count = Flag.select().where(Flag.status == 'accepted').count()
+        rejected_count = Flag.select().where(Flag.status == 'rejected').count()
 
-    accepted_delta = Flag.select().where(Flag.status == 'accepted',
-                                         Flag.tick == tick_number).count()
-    rejected_delta = Flag.select().where(Flag.status == 'rejected',
-                                         Flag.tick == tick_number).count()
+        accepted_delta = Flag.select().where(Flag.status == 'accepted',
+                                             Flag.tick == tick_number).count()
+        rejected_delta = Flag.select().where(Flag.status == 'rejected',
+                                             Flag.tick == tick_number).count()
 
     return {
         'queued': queued_count,
@@ -583,7 +585,7 @@ def exfiltrate(webhook_id):
 
         for flag_value in flags:
             try:
-                with db.atomic():
+                with db.connection_context():
                     Flag.create(value=flag_value, exploit=exploit, target=target,
                                 tick=tick_number, player=player, status='queued')
                 new_flags.append(flag_value)
@@ -667,6 +669,7 @@ def submitter_wrapper():
                 flag.response = rejected[flag.value]
             Flag.bulk_update(to_reject, fields=[Flag.status, Flag.response])
 
+    with db.connection_context():
         queued_count = Flag.select().where(Flag.status == 'queued').count()
         accepted_count = Flag.select().where(Flag.status == 'accepted').count()
         rejected_count = Flag.select().where(Flag.status == 'rejected').count()

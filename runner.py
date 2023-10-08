@@ -3,6 +3,7 @@ import os
 import sys
 import time
 import shlex
+import queue
 import argparse
 import threading
 import subprocess
@@ -17,6 +18,7 @@ from database import sqlite_db
 
 exploit_name = ''
 handler: SubmitClient = None
+completed_attacks = queue.Queue()
 
 
 def main(args):
@@ -114,6 +116,16 @@ def main(args):
             logger.error(
                 f"{st.bold(exploit_name)} took longer than {st.bold(str(args.timeout))} seconds for {st.bold(t.name)}. ⌛")
 
+    to_insert = []
+    while not completed_attacks.empty():
+        attack: Attack = completed_attacks.get()
+        if attack.flag_id is None:
+            continue
+        to_insert.append({'host': attack.host, 'flag_id': attack.flag_id})
+
+    with sqlite_db.atomic():
+        Attack.insert_many(to_insert).on_conflict_ignore().execute()
+
     if cleanup_func:
         cleanup_func()
 
@@ -129,8 +141,7 @@ def exploit_wrapper(exploit_func, attack: Attack):
 
         if found_flags:
             response = handler.enqueue(found_flags, exploit_name, attack.host)
-            with sqlite_db.atomic():
-                attack.save()
+            completed_attacks.put(attack)
 
             if 'own' in response:
                 logger.warning(
