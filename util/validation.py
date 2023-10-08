@@ -24,6 +24,8 @@ def validate_data(data, schema, custom=None):
 
 def validate_targets(exploits):
     for exploit_idx, exploit in enumerate(exploits):
+        if not exploit.get('targets'):
+            continue
         for target_idx, target in enumerate(exploit['targets']):
             if not validate_target(target):
                 raise ValidationError(f"Target '{st.bold(target)}' in exploit '{st.bold(exploit['name'])}' is not a valid IP, IP range or hostname.",
@@ -46,7 +48,9 @@ def validate_target(target_entry):
     # Hostname
     return validate_hostname(target_entry)
 
+
 # IPv4 validations
+
 
 def validate_octet_range(octet):
     if "-" in octet:
@@ -61,7 +65,9 @@ def validate_ipv4_range(ip_range):
 
     return len(octets) == 4 and all(validate_octet_range(octet) for octet in octets)
 
+
 # IPv6 validations
+
 
 def validate_hextet_range(hextet):
     if "-" in hextet:
@@ -82,10 +88,12 @@ def validate_hextet_range(hextet):
 def validate_ipv6_range(ip_range):
     ip_range = explode_ipv6_range(ip_range)
     hextets = ip_range.split(":")
-    
+
     return len(hextets) == 8 and all(validate_hextet_range(hextet) for hextet in hextets)
 
+
 # Hostname validatoin
+
 
 def validate_hostname(hostname):
     if hostname[-1] == ".":
@@ -101,7 +109,9 @@ def validate_hostname(hostname):
     allowed = re.compile(r"(?!-)[a-z0-9-]{1,63}(?<!-)$", re.IGNORECASE)
     return all(allowed.match(label) for label in labels)
 
+
 # Other validations
+
 
 def validate_delay(server_yaml_data):
     if server_yaml_data['submitter'].get('delay') is None:
@@ -111,7 +121,8 @@ def validate_delay(server_yaml_data):
     delay = server_yaml_data['submitter']['delay']
 
     if delay >= tick_duration:
-        raise ValidationError(f"Submitter delay ({delay}s) takes longer than the tick itself ({tick_duration}s).", path=['submitter', 'delay'])
+        raise ValidationError(f"Submitter delay ({delay}s) takes longer than the tick itself ({tick_duration}s).", path=[
+                              'submitter', 'delay'])
 
 
 def validate_interval(server_yaml_data):
@@ -122,7 +133,8 @@ def validate_interval(server_yaml_data):
     duration = server_yaml_data['game']['tick_duration']
 
     if duration % interval != 0:
-        raise ValidationError(f"Submitter interval ({interval}s) must divide tick duration ({duration}s).", path=['submitter', 'interval'])
+        raise ValidationError(f"Submitter interval ({interval}s) must divide tick duration ({duration}s).", path=[
+                              'submitter', 'interval'])
 
 
 connect_schema = {
@@ -207,7 +219,7 @@ exploit_schema = {
             }
         },
     },
-    "required": ["name", "targets"],
+    "required": ["name"],
     "additionalProperties": False
 }
 
@@ -237,6 +249,10 @@ game_schema = {
         "start": {
             "type": "string",
             "pattern": "^\d{4}-\d{2}-\d{2} \d{2}:\d{2}(:\d{2})?$"
+        },
+        "teams_json_url": {
+            "type": "string",
+            "format": "uri"
         }
     },
     "required": ["tick_duration", "flag_format", "team_ip"],

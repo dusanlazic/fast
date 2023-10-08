@@ -1,3 +1,4 @@
+import os
 import json
 import time
 import requests
@@ -5,10 +6,10 @@ from util.log import logger
 from util.styler import TextStyler as st
 from datetime import datetime, timedelta
 from requests.auth import HTTPBasicAuth
-from database import fallbackdb
+from database import sqlite_db
 from models import FallbackFlag
 
-IMMUTABLE_CONFIG_PATH = '.config.json'
+IMMUTABLE_CONFIG_PATH = os.path.join('.fast', 'config.json')
 
 headers = {
     'Content-Type': 'application/json'
@@ -28,7 +29,8 @@ class SubmitClient(object):
     def _client_configure(self):
         self._update_url()
         self._update_auth()
-        response = requests.get(f'{self.url}/config', params={'player': self.connect['player']}, auth=self.auth)
+        response = requests.get(
+            f'{self.url}/config', params={'player': self.connect['player']}, auth=self.auth)
         response.raise_for_status()
         server_config = response.json()
         self.game = server_config['game']
@@ -45,7 +47,7 @@ class SubmitClient(object):
     def _runner_configure(self):
         with open(IMMUTABLE_CONFIG_PATH) as file:
             immutable_config = json.loads(file.read())
-        
+
         self.game = immutable_config['game']
         self.connect = immutable_config['connect']
         self._update_url()
@@ -65,14 +67,16 @@ class SubmitClient(object):
             )
 
     def _connect_to_fallbackdb(self):
-        fallbackdb.connect(reuse_if_open=True)
+        sqlite_db.connect(reuse_if_open=True)
 
     def sync(self):
         response = requests.get(f'{self.url}/sync', auth=self.auth)
         sync_data = response.json()
 
-        wait_until = datetime.now() + timedelta(seconds=sync_data['tick']['remaining'])
-        logger.info(f'Synchronizing with the server... Tick will start at {st.bold(wait_until.strftime("%H:%M:%S"))}.')
+        wait_until = datetime.now() + \
+            timedelta(seconds=sync_data['tick']['remaining'])
+        logger.info(
+            f'Synchronizing with the server... Tick will start at {st.bold(wait_until.strftime("%H:%M:%S"))}.')
         time.sleep(sync_data['tick']['remaining'])
 
     def enqueue(self, flags, exploit, target):
@@ -85,18 +89,19 @@ class SubmitClient(object):
 
         if target in self.game['team_ip']:
             try:
-                response = requests.post(f'{self.url}/vuln-report', data=payload, headers=headers, auth=self.auth)
+                response = requests.post(
+                    f'{self.url}/vuln-report', data=payload, headers=headers, auth=self.auth)
             except Exception:
                 pass
             return {'own': len(flags)}
-        
+
         try:
             response = requests.post(
                 f'{self.url}/enqueue', data=payload, headers=headers, auth=self.auth)
         except Exception:
             for flag_value in flags:
-                with fallbackdb.atomic():
-                    FallbackFlag.create(value=flag_value, exploit=exploit, target=target, 
+                with sqlite_db.atomic():
+                    FallbackFlag.create(value=flag_value, exploit=exploit, target=target,
                                         status='pending')
             return {'pending': len(flags)}
         else:
@@ -120,14 +125,16 @@ class SubmitClient(object):
         except Exception:
             logger.error("Server is unavailable. Skipping...")
         else:
-            with fallbackdb.atomic():
-                FallbackFlag.update(status='forwarded').where(FallbackFlag.value.in_([flag.value for flag in flags])).execute()
+            with sqlite_db.atomic():
+                FallbackFlag.update(status='forwarded').where(
+                    FallbackFlag.value.in_([flag.value for flag in flags])).execute()
 
     def trigger_submit(self):
         payload = json.dumps({
             'player': self.connect['player']
         })
-        response = requests.post(f'{self.url}/trigger-submit', data=payload, headers=headers, auth=self.auth)
+        response = requests.post(
+            f'{self.url}/trigger-submit', data=payload, headers=headers, auth=self.auth)
         return response.json()
 
     def get_flagstore_stats(self):

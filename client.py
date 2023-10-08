@@ -2,12 +2,11 @@ import os
 import yaml
 import time
 import hashlib
+import requests
 import threading
 import subprocess
-from copy import deepcopy
-from itertools import product
-from database import fallbackdb
-from models import ExploitDetails, FallbackFlag, Batching
+from database import sqlite_db
+from models import ExploitDefinition, FallbackFlag, Attack, Batching, DigestValuePair
 from handler import SubmitClient
 from util.styler import TextStyler as st
 from util.helpers import seconds_from_now
@@ -20,8 +19,9 @@ from apscheduler.schedulers.background import BlockingScheduler
 DIR_PATH = os.path.dirname(os.path.realpath(__file__))
 RUNNER_PATH = os.path.join(DIR_PATH, 'runner.py')
 
+prev_exploit_defs = DigestValuePair(digest=None, value=None)
+prev_teams_json_digest = None
 
-cached_exploits = (None, None)  # (hash, exploits)
 handler: SubmitClient = None
 connect = {
     'protocol': 'http',
@@ -34,15 +34,16 @@ connect = {
 def main():
     banner()
     create_log_dir()
+    create_dot_dir()
     load_config()
     setup_handler()
 
     scheduler = BlockingScheduler()
     scheduler.add_job(
-        func=run_exploits,
+        func=begin_tick,
         trigger='interval',
         seconds=handler.game['tick_duration'],
-        id='exploits',
+        id='tick',
         next_run_time=seconds_from_now(0)
     )
 
@@ -57,17 +58,19 @@ def main():
     scheduler.start()
 
 
-def run_exploits():
-    exploits = load_exploits()
-    if not exploits:
+def begin_tick():
+    exploit_defs = load_exploit_definitions()
+    if not exploit_defs:
         logger.info(f'No exploits defined in {st.bold("fast.yaml")}. Skipped.')
         return
 
-    for exploit in exploits:
-        threading.Thread(target=run_exploit, args=(exploit,)).start()
+    fetch_teams_json()
+
+    for e in exploit_defs:
+        threading.Thread(target=start_runner, args=(e,)).start()
 
 
-def run_exploit(exploit):
+def start_runner(exploit):
     runner_command = ['python', RUNNER_PATH] + \
         exploit.targets + ['--name', exploit.name]
     if exploit.module:
@@ -82,16 +85,13 @@ def run_exploit(exploit):
         runner_command.extend(['--timeout', str(exploit.timeout)])
     if exploit.batching:
         runner_command.extend(['--batch-wait', str(exploit.batching.wait)])
-
         if exploit.batching.count:
-            runner_command.extend(['--batch-count', str(exploit.batching.count)])
+            runner_command.extend(
+                ['--batch-count', str(exploit.batching.count)])
         elif exploit.batching.size:
             runner_command.extend(['--batch-size', str(exploit.batching.size)])
     if exploit.delay:
         time.sleep(exploit.delay)
-
-    logger.info(
-        f'Running {st.bold(exploit.name)} at {st.bold(len(exploit.targets))} target{"s" if len(exploit.targets) > 1 else ""}...')
 
     subprocess.run(runner_command, text=True, env={
                    **exploit.env, **os.environ})
@@ -100,19 +100,21 @@ def run_exploit(exploit):
 
 
 def enqueue_from_fallback():
-    flags = [flag for flag in FallbackFlag.select().where(FallbackFlag.status == 'pending')]
+    flags = [flag for flag in FallbackFlag.select().where(
+        FallbackFlag.status == 'pending')]
     if flags:
-        logger.info(f'Forwarding {len(flags)} flags from the fallback flagstore...')
+        logger.info(
+            f'Forwarding {len(flags)} flags from the fallback flagstore...')
         handler.enqueue_from_fallback(flags)
 
 
-def load_exploits():
-    global cached_exploits
+def load_exploit_definitions():
+    global prev_exploit_defs
 
     with open('fast.yaml', 'r') as file:
-        digest = hashlib.sha256(file.read().encode()).hexdigest()
-        if cached_exploits[0] == digest:
-            return cached_exploits[1]
+        digest = hashlib.md5(file.read().encode()).hexdigest()
+        if prev_exploit_defs.digest == digest:
+            return prev_exploit_defs.value
 
         try:
             file.seek(0)
@@ -121,45 +123,50 @@ def load_exploits():
 
             exploits_data = yaml_data.get('exploits', 'MISSING')
             if exploits_data == 'MISSING':
-                logger.warning(f"{st.bold('exploits')} section is missing in {st.bold('fast.yaml')}. Please add {st.bold('exploits')} section to start running exploits in the next tick.")
+                logger.warning(
+                    f"{st.bold('exploits')} section is missing in {st.bold('fast.yaml')}. Please add {st.bold('exploits')} section to start running exploits in the next tick.")
                 return
             elif exploits_data == None:
-                logger.warning(f"{st.bold('exploits')} section contains no exploits. Please add your exploits to start running them in the next tick.")
+                logger.warning(
+                    f"{st.bold('exploits')} section contains no exploits. Please add your exploits to start running them in the next tick.")
                 return
 
             if not validate_data(exploits_data, exploits_schema, custom=validate_targets):
-                if cached_exploits[1]:
+                if prev_exploit_defs.value:
                     logger.error(
-                    f"Errors found in 'exploits' section in {st.bold('fast.yaml')}. The previous configuration will be reused in the following tick.")
+                        f"Errors found in 'exploits' section in {st.bold('fast.yaml')}. The previous configuration will be reused in the following tick.")
                 else:
                     logger.error(
-                    f"Errors found in 'exploits' section in {st.bold('fast.yaml')}. Please fix the errors to start running exploits in the next tick.")
-                
-                return cached_exploits[1]
-            
-            exploits = [parse_exploit_entry(exploit)
-                        for exploit in yaml_data['exploits']]
-            logger.success(f'Loaded {st.bold(len(exploits))} exploits.')
-            cached_exploits = (digest, exploits)
-            return exploits
+                        f"Errors found in 'exploits' section in {st.bold('fast.yaml')}. Please fix the errors to start running exploits in the next tick.")
+
+                return prev_exploit_defs.value
+
+            exploits_defs = [parse_exploit_definition(exploit)
+                             for exploit in yaml_data['exploits']]
+            logger.success(f'Loaded {st.bold(len(exploits_defs))} exploits.')
+            prev_exploit_defs = DigestValuePair(digest, exploits_defs)
+            return exploits_defs
         except Exception as e:
-            if cached_exploits[1]:
+            if prev_exploit_defs.value:
                 logger.error(
-                f"Failed to load exploits from the new {st.bold('fast.yaml')} file. The previous configuration will be reused in the following tick.")
+                    f"Failed to load exploits from the new {st.bold('fast.yaml')} file. The previous configuration will be reused in the following tick.")
             else:
                 logger.error(
-                f"Failed to load exploits from the new {st.bold('fast.yaml')} file. Please fix the errors to start running exploits in the next tick.")
-            
-            return cached_exploits[1]
+                    f"Failed to load exploits from the new {st.bold('fast.yaml')} file. Please fix the errors to start running exploits in the next tick.")
+
+            print(e.with_traceback())
+
+            return prev_exploit_defs.value
 
 
-def parse_exploit_entry(entry):
+def parse_exploit_definition(entry):
     name = entry.get('name')
     run = entry.get('run')
     prepare = entry.get('prepare')
     cleanup = entry.get('cleanup')
     module = None if run else (entry.get('module') or name).replace('.py', '')
-    targets = process_targets(entry['targets'])
+    targets = process_targets(
+        entry['targets']) if entry.get('targets') else ['auto']
     timeout = entry.get('timeout')
     env = entry.get('env') or {}
     delay = entry.get('delay')
@@ -169,13 +176,14 @@ def parse_exploit_entry(entry):
         entry['batches'].get('wait')
     ) if entry.get('batches') else None
 
-    return ExploitDetails(name, targets, module, run, prepare, cleanup, timeout, env, delay, batching)
+    return ExploitDefinition(name, targets, module, run, prepare, cleanup, timeout, env, delay, batching)
 
 
 def load_config():
     # Load fast.yaml
     if not os.path.isfile('fast.yaml'):
-        logger.error(f"{st.bold('fast.yaml')} not found in the current working directory. Exiting...")
+        logger.error(
+            f"{st.bold('fast.yaml')} not found in the current working directory. Exiting...")
         exit(1)
 
     with open('fast.yaml', 'r') as file:
@@ -192,20 +200,24 @@ def load_config():
         connect.update(connect_data)
 
         if not validate_data(connect, connect_schema):
-            logger.error(f"Fix errors in {st.bold('connect')} section in {st.bold('fast.yaml')} and rerun.")
+            logger.error(
+                f"Fix errors in {st.bold('connect')} section in {st.bold('fast.yaml')} and rerun.")
             exit(1)
 
     # Load and validate exploits config
     logger.info('Checking exploits config...')
     exploits_data = yaml_data.get('exploits', 'MISSING')
     if exploits_data == 'MISSING':
-        logger.warning(f"{st.bold('exploits')} section is missing in {st.bold('fast.yaml')}. Please add {st.bold('exploits')} section to start running exploits in the next tick.")
+        logger.warning(
+            f"{st.bold('exploits')} section is missing in {st.bold('fast.yaml')}. Please add {st.bold('exploits')} section to start running exploits in the next tick.")
     elif exploits_data == None:
-        logger.warning(f"{st.bold('exploits')} section contains no exploits. Please add your exploits to start running them in the next tick.")
+        logger.warning(
+            f"{st.bold('exploits')} section contains no exploits. Please add your exploits to start running them in the next tick.")
     elif exploits_data and not validate_data(exploits_data, exploits_schema, custom=validate_targets):
-        logger.error(f"Fix errors in {st.bold('exploits')} section in {st.bold('fast.yaml')} and rerun.")
+        logger.error(
+            f"Fix errors in {st.bold('exploits')} section in {st.bold('fast.yaml')} and rerun.")
         exit(1)
-    
+
     logger.success('No errors found in exploits config.')
 
 
@@ -226,7 +238,8 @@ def setup_handler(fire_mode=False):
         handler = SubmitClient(connect)
 
         config_repr = f"{handler.game['tick_duration']}s tick, {handler.game['flag_format']}, {' '.join(handler.game['team_ip'])}"
-        logger.success(f'Game configured successfully. — {st.faint(config_repr)}')
+        logger.success(
+            f'Game configured successfully. — {st.faint(config_repr)}')
 
         # Synchronize client with server's tick clock
         if not fire_mode:
@@ -251,8 +264,60 @@ def setup_handler(fire_mode=False):
             exit(1)
 
     # Setup fallback db
-    fallbackdb.connect(reuse_if_open=True)
-    fallbackdb.create_tables([FallbackFlag])
+    sqlite_db.connect(reuse_if_open=True)
+    sqlite_db.create_tables([FallbackFlag, Attack])
+
+
+def fetch_teams_json():
+    global prev_teams_json_digest
+
+    endpoint = handler.game.get('teams_json_url')
+    if not endpoint:
+        logger.info("Skipped fetching teams.json as its url is not set.")
+        return
+
+    attempts_remaining = 10
+    while attempts_remaining:
+        try:
+            response = requests.get(endpoint, timeout=10)
+            response.raise_for_status()
+            logger.success(
+                f'Got response from {endpoint} ({len(response.content)})')
+        except Exception as e:
+            exception_name = '.'.join(
+                [type(e).__module__, type(e).__qualname__])
+            logger.error(
+                f"An error occurred while fetching teams.json. Retrying in 2s. — {st.color(exception_name, 'red')}")
+            time.sleep(2)
+            attempts_remaining -= 1
+            continue
+
+        digest = hashlib.md5(response.text.encode()).hexdigest()
+        if not prev_teams_json_digest or digest != prev_teams_json_digest:
+            break
+
+        logger.warning(
+            'teams.json has not been updated yet. Fetching again in 2s.')
+        time.sleep(2)
+        attempts_remaining -= 1
+
+    if not attempts_remaining:
+        logger.error(
+            'Failed to fetch updated teams.json file.')
+        logger.info('Old teams.json will be reused.')
+        return
+
+    with open(os.path.join('.fast', 'teams.json'), 'w') as file:
+        file.write(response.text)
+    prev_teams_json_digest = digest
+    logger.success(f'New teams.json saved ({digest}).')
+
+
+def create_dot_dir():
+    dot_dir_path = '.fast'
+    if not os.path.exists(dot_dir_path):
+        os.makedirs(dot_dir_path)
+        logger.success(f'Created .fast directory.')
 
 
 def banner():

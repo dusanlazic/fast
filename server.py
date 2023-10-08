@@ -56,11 +56,12 @@ config = {
     }
 }
 
-RECOVERY_CONFIG_PATH = '.recover.json'
+RECOVERY_CONFIG_PATH = os.path.join('.fast', 'recover.json')
 
 
 def main():
     banner()
+    create_dot_dir()
     configure_flask()
     load_config()
     setup_database()
@@ -85,12 +86,13 @@ def main():
     if submitter.get('delay'):
         delay = timedelta(seconds=submitter['delay'])
         interval = game['tick_duration']
-        first_run =  tick_start + delay
+        first_run = tick_start + delay
     elif submitter.get('interval'):
         interval = submitter['interval']
         now = datetime.now()
         elapsed = (now - tick_start).total_seconds()
-        first_run = now + timedelta(seconds=elapsed // interval * interval + interval - elapsed)
+        first_run = now + timedelta(seconds=elapsed //
+                                    interval * interval + interval - elapsed)
 
     # Enable submitter importing
     sys.path.append(os.getcwd())
@@ -127,7 +129,7 @@ def unauthorized():
 def basic(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        if 'password' in config['server']: 
+        if 'password' in config['server']:
             return auth.login_required(func)(*args, **kwargs)
         else:
             return func(*args, **kwargs)
@@ -146,9 +148,9 @@ def authenticate_websocket():
     basic, credentials = auth_header.split(' ')
     if basic.lower() != 'basic':
         return False
-    
+
     username, password = b64decode(credentials).decode('utf-8').split(':')
-    
+
     return authenticate(username, password)
 
 
@@ -166,16 +168,16 @@ def enqueue():
     for flag_value in flags:
         try:
             with db.atomic():
-                Flag.create(value=flag_value, exploit=exploit, target=target, 
+                Flag.create(value=flag_value, exploit=exploit, target=target,
                             tick=tick_number, player=player, status='queued')
             new_flags.append(flag_value)
         except IntegrityError:
             duplicate_flags.append(flag_value)
-    
+
     if new_flags:
         logger.success(f"{st.bold(player)} retrieved " +
-                    (f"{st.bold(1)} flag " if len(new_flags) == 1 else f"{st.bold(len(new_flags))} flags ") + 
-                    f"from {st.bold(target)} using {st.bold(exploit)}. 🚩  — {st.faint(truncate(' '.join(new_flags), 50))}")
+                       (f"{st.bold(1)} flag " if len(new_flags) == 1 else f"{st.bold(len(new_flags))} flags ") +
+                       f"from {st.bold(target)} using {st.bold(exploit)}. 🚩  — {st.faint(truncate(' '.join(new_flags), 50))}")
 
     socketio.emit('enqueue', {
         'new': len(new_flags),
@@ -187,7 +189,7 @@ def enqueue():
 
     return {
         'duplicates': duplicate_flags,
-        'new':  new_flags
+        'new': new_flags
     }
 
 
@@ -205,20 +207,21 @@ def enqueue_fallback():
         target = flag['target']
         player = flag['player']
         timestamp = flag.get('timestamp', None)
-        tick = int((datetime.fromtimestamp(timestamp) - game_start).total_seconds() // config['game']['tick_duration']) if timestamp else tick_number
+        tick = int((datetime.fromtimestamp(timestamp) - game_start).total_seconds() //
+                   config['game']['tick_duration']) if timestamp else tick_number
 
         try:
             with db.atomic():
-                Flag.create(value=flag_value, exploit=exploit, target=target, 
+                Flag.create(value=flag_value, exploit=exploit, target=target,
                             tick=tick, player=player, status='queued')
             new_flags.append(flag_value)
         except IntegrityError:
             duplicate_flags.append(flag_value)
-    
+
     if new_flags:
         logger.success(f"{st.bold(player)} sent " +
-                    (f"{st.bold(1)} flag " if len(new_flags) == 1 else f"{st.bold(len(new_flags))} flags from fallback flagstore. 🚩"))
-    
+                       (f"{st.bold(1)} flag " if len(new_flags) == 1 else f"{st.bold(len(new_flags))} flags from fallback flagstore. 🚩"))
+
     socketio.emit('enqueue_fallback', {
         'new': len(new_flags),
         'dup': len(duplicate_flags)
@@ -226,7 +229,7 @@ def enqueue_fallback():
 
     return {
         'duplicates': duplicate_flags,
-        'new':  new_flags
+        'new': new_flags
     }
 
 
@@ -245,14 +248,14 @@ def enqueue_manual():
             try:
                 with db.atomic():
                     new_flag = Flag.create(value=flag_value, tick=tick_number, player=player,
-                    exploit='manual', target='unknown', status='queued')
+                                           exploit='manual', target='unknown', status='queued')
                 new_flags.append(new_flag)
             except IntegrityError:
                 duplicate_flags.append(flag_value)
-        
+
         return [
             {
-                'status': flag.status, 
+                'status': flag.status,
                 'value': flag.value,
                 'persisted': flag._pk is not None
             } for flag in new_flags
@@ -271,24 +274,26 @@ def enqueue_manual():
         for value, response in accepted.items():
             try:
                 with db.atomic():
-                    flag = Flag.create(value=value, tick=tick_number, player=player, 
-                    exploit='manual', target='unknown', status='accepted', response=response)
+                    flag = Flag.create(value=value, tick=tick_number, player=player,
+                                       exploit='manual', target='unknown', status='accepted', response=response)
                 accepted_flags.append(flag)
             except IntegrityError:
-                accepted_flags.append(Flag(value=value, status='accepted', response=response))
-        
+                accepted_flags.append(
+                    Flag(value=value, status='accepted', response=response))
+
         for value, response in rejected.items():
             try:
                 with db.atomic():
-                    flag = Flag.create(value=value, tick=tick_number, player=player, 
-                    exploit='manual', target='unknown', status='rejected', response=response)
+                    flag = Flag.create(value=value, tick=tick_number, player=player,
+                                       exploit='manual', target='unknown', status='rejected', response=response)
                 rejected_flags.append(flag)
             except IntegrityError:
-                rejected_flags.append(Flag(value=value, status='accepted', response=response))
-        
+                rejected_flags.append(
+                    Flag(value=value, status='accepted', response=response))
+
         return [
             {
-                'status': flag.status, 
+                'status': flag.status,
                 'value': flag.value,
                 'response': flag.response,
                 'persisted': flag._pk is not None
@@ -325,7 +330,7 @@ def vulnerability_report():
 @basic
 def sync():
     now: datetime = datetime.now()
-    
+
     duration = config['game']['tick_duration']
     elapsed = (now - tick_start).total_seconds()
     if elapsed > 0:
@@ -337,9 +342,12 @@ def sync():
     interval = config['submitter'].get('interval')
 
     if delay is not None:
-        next_submit: datetime = tick_start + timedelta(seconds=delay + (duration if elapsed > delay else 0))
+        next_submit: datetime = tick_start + \
+            timedelta(seconds=delay + (duration if elapsed > delay else 0))
     elif interval:
-        next_submit: datetime = now + timedelta(seconds=elapsed // interval * interval + interval - elapsed)
+        next_submit: datetime = now + \
+            timedelta(seconds=elapsed // interval *
+                      interval + interval - elapsed)
 
     next_submit_remaining = (next_submit - now).total_seconds()
 
@@ -365,8 +373,10 @@ def get_flagstore_stats():
     accepted_count = Flag.select().where(Flag.status == 'accepted').count()
     rejected_count = Flag.select().where(Flag.status == 'rejected').count()
 
-    accepted_delta =  Flag.select().where(Flag.status == 'accepted', Flag.tick == tick_number).count()
-    rejected_delta =  Flag.select().where(Flag.status == 'rejected', Flag.tick == tick_number).count()
+    accepted_delta = Flag.select().where(Flag.status == 'accepted',
+                                         Flag.tick == tick_number).count()
+    rejected_delta = Flag.select().where(Flag.status == 'rejected',
+                                         Flag.tick == tick_number).count()
 
     return {
         'queued': queued_count,
@@ -410,7 +420,7 @@ def search():
         return {
             'error': f'Something is broken either with your query or with the way it is processed. :('
         }, 500
-    
+
     # Select page
     page = request_json.get('page', 1)
     show = min(request_json.get('show', 10), 100)
@@ -418,19 +428,20 @@ def search():
     # Select sorting
     sort_fields = request_json.get("sort", [])
     sort_expressions = [
-        getattr(Flag, item["field"]).desc() if item["direction"] == "desc" else getattr(Flag, item["field"])
+        getattr(Flag, item["field"]).desc(
+        ) if item["direction"] == "desc" else getattr(Flag, item["field"])
         for item in sort_fields
     ]
 
     # Run query
     start = time.time()
     try:
-        results = [flag_model_to_dict(flag) for flag in 
-            Flag.select()
-            .where(peewee_query)
-            .order_by(*sort_expressions)
-            .paginate(page, show)
-        ]
+        results = [flag_model_to_dict(flag) for flag in
+                   Flag.select()
+                   .where(peewee_query)
+                   .order_by(*sort_expressions)
+                   .paginate(page, show)
+                   ]
     except Exception:
         return {
             'error': f'Failed to run the query.'
@@ -484,7 +495,8 @@ def get_flag_format():
 @app.route('/trigger-submit', methods=['POST'])
 @basic
 def trigger_submit():
-    logger.info(f"Submitter triggered manually by {st.bold(request.json['player'])}.")
+    logger.info(
+        f"Submitter triggered manually by {st.bold(request.json['player'])}.")
     submitter_wrapper()
 
     return {
@@ -496,9 +508,9 @@ def trigger_submit():
 @basic
 def get_webhooks():
     try:
-        results = [model_to_dict(webhook) for webhook in 
-            Webhook.select().order_by(Webhook.exploit)
-        ]
+        results = [model_to_dict(webhook) for webhook in
+                   Webhook.select().order_by(Webhook.exploit)
+                   ]
 
         metadata = {
             "total": len(results)
@@ -521,7 +533,8 @@ def create_webhook():
         data = request.json
         exploit = data.get('exploit', token_hex(4))
         player = data.get('player', 'anon')
-        new_webhook = Webhook.create(id=uuid.uuid4(), exploit=exploit, player=player)
+        new_webhook = Webhook.create(
+            id=uuid.uuid4(), exploit=exploit, player=player)
         return {'id': str(new_webhook.id)}, 201
     except Exception as e:
         return {'error': f'Failed to create webhook: {str(e)}'}, 500
@@ -553,8 +566,9 @@ def update_webhook(webhook_id):
 @app.route('/<string:webhook_id>', methods=['GET', 'POST', 'PUT'])
 def exfiltrate(webhook_id):
     try:
-        webhook = Webhook.get((Webhook.id == uuid.UUID(webhook_id)) & (Webhook.disabled == False))
-        
+        webhook = Webhook.get((Webhook.id == uuid.UUID(
+            webhook_id)) & (Webhook.disabled == False))
+
         contains_flags = request.get_data(as_text=True)
         flags = re.findall(config['game']['flag_format'], contains_flags)
         if not flags:
@@ -570,16 +584,16 @@ def exfiltrate(webhook_id):
         for flag_value in flags:
             try:
                 with db.atomic():
-                    Flag.create(value=flag_value, exploit=exploit, target=target, 
+                    Flag.create(value=flag_value, exploit=exploit, target=target,
                                 tick=tick_number, player=player, status='queued')
                 new_flags.append(flag_value)
             except IntegrityError:
                 duplicate_flags.append(flag_value)
-        
+
         if new_flags:
             logger.success(f"{st.bold(player)} exfiltrated " +
-                        (f"{st.bold(1)} flag " if len(new_flags) == 1 else f"{st.bold(len(new_flags))} flags ") + 
-                        f"from {st.bold(target)} using {st.bold(exploit)}. 🚩  — {st.faint(truncate(' '.join(new_flags), 50))}")
+                           (f"{st.bold(1)} flag " if len(new_flags) == 1 else f"{st.bold(len(new_flags))} flags ") +
+                           f"from {st.bold(target)} using {st.bold(exploit)}. 🚩  — {st.faint(truncate(' '.join(new_flags), 50))}")
 
         socketio.emit('enqueue', {
             'new': len(new_flags),
@@ -704,12 +718,14 @@ def tick_clock():
 def generate_exploit_analytics():
     tick_window = 10
     latest_tick = tick_number
-    oldest_tick = max(0, latest_tick - tick_window + 1)  # add 1 to ignore -11th tick
+    # add 1 to ignore -11th tick
+    oldest_tick = max(0, latest_tick - tick_window + 1)
 
     query = Flag.select(Flag.player, Flag.exploit, Flag.tick, fn.COUNT(Flag.id).alias('flag_count')) \
                 .where((Flag.tick >= oldest_tick) & (Flag.tick <= latest_tick) & (Flag.status == 'accepted') & (Flag.exploit != 'manual')) \
                 .group_by(Flag.player, Flag.exploit, Flag.tick)
-    results = [(result.player, result.exploit, result.tick, result.flag_count) for result in query]
+    results = [(result.player, result.exploit, result.tick,
+                result.flag_count) for result in query]
 
     tick_indices = [i for i in range(oldest_tick, latest_tick + 1)]
     report = {'ticks': tick_indices, 'exploits': {}}
@@ -725,14 +741,15 @@ def generate_exploit_analytics():
                 }
             }
 
-        report['exploits'][key]['data']['accepted'][tick_indices.index(tick)] = flag_count
+        report['exploits'][key]['data']['accepted'][tick_indices.index(
+            tick)] = flag_count
 
     return report
 
 
 def setup_database(log=True):
     postgres = PostgresqlDatabase(
-        config['database']['name'], 
+        config['database']['name'],
         user=config['database']['user'],
         password=config['database']['password'],
         host=config['database']['host'],
@@ -746,10 +763,10 @@ def setup_database(log=True):
         logger.error(
             f"An error occurred when connecting to the database:\n{st.color(e, 'red')}")
         exit(1)
-    
+
     db.create_tables([Flag, Webhook])
     Flag.add_index(Flag.value)
-    
+
     if log:
         logger.success('Database connected.')
 
@@ -760,7 +777,8 @@ def configure_flask():
         CORS(app)
 
     # Set static path
-    app.static_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'web', 'dist')
+    app.static_folder = os.path.join(os.path.dirname(
+        os.path.abspath(__file__)), 'web', 'dist')
 
     # Disable logs
     logging.getLogger('werkzeug').setLevel(logging.ERROR)
@@ -768,7 +786,8 @@ def configure_flask():
 
 def submit_func(flags):
     module_name = config['submitter']['module']
-    imported_module = reload(import_module(module_name))  # Ensure it's always the latest one
+    # Ensure it's always the latest one
+    imported_module = reload(import_module(module_name))
     imported_func = getattr(imported_module, 'submit')
 
     return imported_func(flags)
@@ -784,7 +803,8 @@ def load_config():
 
     # Load server.yaml
     if not os.path.isfile('server.yaml'):
-        logger.error(f"{st.bold('server.yaml')} not found in the current working directory. Exiting...")
+        logger.error(
+            f"{st.bold('server.yaml')} not found in the current working directory. Exiting...")
         exit(1)
 
     with open('server.yaml', 'r') as file:
@@ -846,7 +866,8 @@ def update_tick_clock():
         into_tick = (now - game_start) % tick_duration
         tick_start = now + tick_duration - into_tick
 
-        logger.info(f"Tick clock will continue from tick {st.bold(tick_number + 1)}. Tick scheduled for {st.bold(tick_start.strftime('%H:%M:%S'))}. ⏱️")
+        logger.info(
+            f"Tick clock will continue from tick {st.bold(tick_number + 1)}. Tick scheduled for {st.bold(tick_start.strftime('%H:%M:%S'))}. ⏱️")
     elif game_start == now:
         tick_number = -1
         tick_start = now
@@ -856,7 +877,15 @@ def update_tick_clock():
         tick_number = -1
         tick_start = game_start
 
-        logger.info(f"Game has not started yet. Tick 0 scheduled for {st.bold(tick_start.strftime('%H:%M:%S'))}. ⏱️")
+        logger.info(
+            f"Game has not started yet. Tick 0 scheduled for {st.bold(tick_start.strftime('%H:%M:%S'))}. ⏱️")
+
+
+def create_dot_dir():
+    dot_dir_path = '.fast'
+    if not os.path.exists(dot_dir_path):
+        os.makedirs(dot_dir_path)
+        logger.success(f'Created .fast directory.')
 
 
 def banner():
@@ -868,4 +897,3 @@ def banner():
 \033[32;1m  /___/   /____\ \033[0m / __/ /_/ (__  ) /_  
 \033[32;1m /    \___\/     \033[0m/_/  \__,_/____/\__/  
 \033[32;1m/\033[0m""" + f"\033[32mserver\033[0m \033[2mv{vers}\033[0m".rjust(52) + "\n")
-

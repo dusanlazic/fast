@@ -24,8 +24,9 @@ setup(
     ],
     packages=['util', 'web'],
     package_data={'web': ['dist/*', 'dist/assets/*']},
-    py_modules=['cli', 'client', 'database', 'dsl', 'handler', 'models', 'runner', 'server'],
-    entry_points= {
+    py_modules=['cli', 'client', 'database', 'dsl',
+                'handler', 'models', 'runner', 'server'],
+    entry_points={
         'console_scripts': [
             'fast = client:main',
             'server = server:main',

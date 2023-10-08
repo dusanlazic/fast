@@ -9,10 +9,11 @@ import subprocess
 from util.helpers import truncate
 from importlib import import_module
 from handler import SubmitClient
-from models import Batching
-from util.hosts import wrap
+from models import Batching, Attack
 from util.styler import TextStyler as st
 from util.log import logger, log_error, log_warning
+from util.teams import load_teams_json, teams_json_exists, get_all_team_ids, get_team_host
+from database import sqlite_db
 
 exploit_name = ''
 handler: SubmitClient = None
@@ -29,22 +30,57 @@ def main(args):
         cleanup_func = None
     else:
         sys.path.append(os.getcwd())
-        module = import_module(f'{args.module}')
+        module = import_module(args.module)
         exploit_func = getattr(module, 'exploit')
         prepare_func = getattr(module, 'prepare', None)
         cleanup_func = getattr(module, 'cleanup', None)
+        collect_flag_ids = getattr(module, 'collect_flag_ids', None)
 
     if args.prepare:
         def prepare_func(): return run_shell_command(args.prepare)
     if args.cleanup:
         def cleanup_func(): return run_shell_command(args.cleanup)
 
+    attacks = []
+    if teams_json_exists():
+        teams_json = load_teams_json()
+        all_team_ids = get_all_team_ids(teams_json)
+
+        target_team_ids = all_team_ids
+
+        if args.targets != ["auto"]:
+            target_team_ids = [
+                id for id in target_team_ids if get_team_host(id) in args.targets]
+
+        # Remove duplicates if any
+        target_team_ids = list(dict.fromkeys(target_team_ids))
+
+        # Define attacks
+        if collect_flag_ids:
+            for team_id in target_team_ids:
+                flag_ids = collect_flag_ids(teams_json, team_id)
+                host = get_team_host(team_id)
+                for flag_id in flag_ids:
+                    # Ignore completed attacks
+                    if Attack.select().where(Attack.host == host, Attack.flag_id == flag_id).count() == 0:
+                        attacks.append(Attack(host=host, flag_id=flag_id))
+        else:
+            attacks = [Attack(host=get_team_host(team_id))
+                       for team_id in target_team_ids]
+    else:
+        if args.targets == ["auto"]:
+            logger.error(
+                f"{st.bold(exploit_name)} cannot run since it has no targets specified and teams.json doesn't exist.")
+            exit(1)
+
+        target_team_hosts = list(dict.fromkeys(args.targets))
+        attacks = [Attack(host=host) for host in target_team_hosts]
+
     threads = [
         threading.Thread(
             target=exploit_wrapper,
-            name=target,
-            args=(exploit_func, target))
-        for target in args.targets
+            args=(exploit_func, attack))
+        for attack in attacks
     ]
 
     batching = Batching(
@@ -53,13 +89,18 @@ def main(args):
         args.batch_wait or None
     ) if args.batch_wait else None
 
+    logger.info(
+        f'Running {st.bold(len(threads))} attacks with {st.bold(exploit_name)}...')
+
     if prepare_func:
         prepare_func()
 
     if batching:
-        batches = batch_by_count(threads, batching.count) if batching.count else batch_by_size(threads, batching.size)
+        batches = batch_by_count(
+            threads, batching.count) if batching.count else batch_by_size(threads, batching.size)
         for idx, threads in enumerate(batches):
-            logger.info(f"Running batch {idx + 1}/{len(batches)} of {st.bold(exploit_name)} at {st.bold(len(threads))} targets.")
+            logger.info(
+                f"Running batch {idx + 1}/{len(batches)} of {st.bold(exploit_name)} at {st.bold(len(threads))} targets.")
             for t in threads:
                 t.start()
 
@@ -77,19 +118,27 @@ def main(args):
         cleanup_func()
 
 
-def exploit_wrapper(exploit_func, target):
+def exploit_wrapper(exploit_func, attack: Attack):
     try:
-        response_text = exploit_func(wrap(target))
+        if attack.flag_id:
+            response_text = exploit_func(attack.host, attack.flag_id)
+        else:
+            response_text = exploit_func(attack.host)
+
         found_flags = match_flags(response_text)
 
         if found_flags:
-            response = handler.enqueue(found_flags, exploit_name, target)
+            response = handler.enqueue(found_flags, exploit_name, attack.host)
+            with sqlite_db.atomic():
+                attack.save()
 
             if 'own' in response:
-                logger.warning(f"{st.bold(exploit_name)} retrieved own flag! Patch the service ASAP.")
+                logger.warning(
+                    f"{st.bold(exploit_name)} retrieved own flag! Patch the service ASAP.")
                 return
             elif 'pending' in response:
-                logger.warning(f"{st.bold(exploit_name)} retrieved {response['pending']} flag{'s' if response['pending'] > 1 else ''}, but there is no connection to the server.")
+                logger.warning(
+                    f"{st.bold(exploit_name)} retrieved {response['pending']} flag{'s' if response['pending'] > 1 else ''}, but there is no connection to the server.")
                 return
 
             new_flags, duplicate_flags = response['new'], response['duplicates'],
@@ -99,28 +148,28 @@ def exploit_wrapper(exploit_func, target):
             if new_flags_count == 0 and duplicate_flags_count > 0:
                 logger.warning(f"{st.bold(exploit_name)} retrieved no new flags and " +
                                ("a duplicate flag " if duplicate_flags_count == 1 else f"{st.bold(duplicate_flags_count)} duplicate flags ") +
-                               f"from {st.bold(target)}.")
+                               f"from {st.bold(attack.host)}.")
 
             elif new_flags_count > 0 and duplicate_flags_count > 0:
                 logger.success(f"{st.bold(exploit_name)} retrieved " +
                                ("a new flag " if new_flags_count == 1 else f"{st.bold(new_flags_count)} new flags, and ") +
                                ("a duplicate flag " if duplicate_flags_count == 1 else f"{st.bold(duplicate_flags_count)} duplicate flags ") +
-                               f"from {st.bold(target)}. 🚩 — {st.faint(truncate(' '.join(new_flags), 50))}")
+                               f"from {st.bold(attack.host)}. 🚩 — {st.faint(truncate(' '.join(new_flags), 50))}")
 
             elif new_flags_count > 0 and duplicate_flags_count == 0:
                 logger.success(f"{st.bold(exploit_name)} retrieved " +
                                ("a new flag " if new_flags_count == 1 else f"{st.bold(new_flags_count)} new flags ") +
-                               f"from {st.bold(target)}. 🚩 — {st.faint(truncate(' '.join(new_flags), 50))}")
+                               f"from {st.bold(attack.host)}. 🚩 — {st.faint(truncate(' '.join(new_flags), 50))}")
         else:
             logger.warning(
-                f"{st.bold(exploit_name)} retrieved no flags from {st.bold(target)}. — {st.color(repr(truncate(response_text, 50)), 'yellow')}")
-            log_warning(exploit_name, target, response_text)
+                f"{st.bold(exploit_name)} retrieved no flags from {st.bold(attack.host)}. — {st.color(repr(truncate(response_text, 50)), 'yellow')}")
+            log_warning(exploit_name, attack.host, response_text)
     except Exception as e:
         exception_name = '.'.join([type(e).__module__, type(e).__qualname__])
         logger.error(
-            f"{st.bold(exploit_name)} failed with an error for {st.bold(target)}. — {st.color(exception_name, 'red')}")
+            f"{st.bold(exploit_name)} failed with an error for {st.bold(attack.host)}. — {st.color(exception_name, 'red')}")
 
-        log_error(exploit_name, target, e)
+        log_error(exploit_name, attack.host, e)
 
 
 def exploit_func_from_shell(command):
@@ -167,9 +216,13 @@ def batch_by_size(threads, size):
 def batch_by_count(threads, count):
     size = len(threads) // count
     remainder = len(threads) % count
-    batches = [threads[i * size : (i + 1) * size] for i in range(count)]
+    batches = [threads[i * size: (i + 1) * size] for i in range(count)]
     for i in range(remainder):
         batches[i].append(threads[count * size + i])
+
+    # Remove empty batches if any
+    batches = [batch for batch in batches if batch]
+
     return batches
 
 

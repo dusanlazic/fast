@@ -5,7 +5,7 @@ import argparse
 import threading
 from util.log import logger
 from util.styler import TextStyler as st
-from client import load_exploits, load_config, setup_handler, run_exploit
+from client import load_exploit_definitions, load_config, setup_handler, start_runner
 from server import setup_database
 from database import db
 from models import Flag
@@ -21,7 +21,7 @@ def fire():
 
     load_config()
     setup_handler(fire_mode=True)
-    exploits = load_exploits()
+    exploits = load_exploit_definitions()
 
     selected_exploits = [e for e in exploits if e.name in args.names]
 
@@ -35,7 +35,7 @@ def fire():
 
     for exploit in selected_exploits:
         exploit.delay = 0  # Ignore delay and run instantly
-        threading.Thread(target=run_exploit, args=(exploit,)).start()
+        threading.Thread(target=start_runner, args=(exploit,)).start()
 
 
 def submit():
@@ -43,11 +43,12 @@ def submit():
     client = SubmitClient()
     client.trigger_submit()
     stats = client.get_flagstore_stats()
-    logger.info(f"{st.bold('Stats')} — {st.bold(stats['queued'])} queued, {st.bold(stats['accepted'])} accepted, {st.bold(stats['rejected'])} rejected.")
+    logger.info(
+        f"{st.bold('Stats')} — {st.bold(stats['queued'])} queued, {st.bold(stats['accepted'])} accepted, {st.bold(stats['rejected'])} rejected.")
 
 
 def reset():
-    RECOVERY_CONFIG_PATH = '.recover.json'
+    RECOVERY_CONFIG_PATH = os.path.join('.fast', 'recover.json')
     QMARK = st.color('?', 'cyan')
     PLUS = st.color('OK', 'green')
     INFO = st.faint('SKIP')
@@ -55,7 +56,8 @@ def reset():
     if os.path.isfile(RECOVERY_CONFIG_PATH):
         print(f"{QMARK} Do you want to {st.color('reset the tick clock', 'red')}?")
         confirm_string = 'reset'
-        confirmation = input(f"  Type {st.color(confirm_string, 'cyan')} to confirm. ") == confirm_string
+        confirmation = input(
+            f"  Type {st.color(confirm_string, 'cyan')} to confirm. ") == confirm_string
         if confirmation:
             os.remove(RECOVERY_CONFIG_PATH)
             print(f"{PLUS} Tick clock cleared.")
@@ -65,7 +67,8 @@ def reset():
     setup_database(log=False)
     print(f"{QMARK} Do you want to {st.color('delete the existing flags', 'red')}?")
     confirm_string = ');drop table flags;--'
-    confirmation = input(f'  Type {st.color(confirm_string, "cyan")} to delete all the previous flags.\n     > ') == confirm_string
+    confirmation = input(
+        f'  Type {st.color(confirm_string, "cyan")} to delete all the previous flags.\n     > ') == confirm_string
 
     if confirmation:
         db.drop_tables([Flag])

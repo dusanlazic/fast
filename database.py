@@ -1,16 +1,17 @@
-from peewee import Model, Proxy, SqliteDatabase
+import os
+from peewee import Model, DatabaseProxy, SqliteDatabase
 
-db = Proxy()
+db = DatabaseProxy()
 
 
-class BaseModel(Model):
+class ServerBaseModel(Model):
     class Meta:
         database = db
 
 
-fallbackdb = SqliteDatabase('fallback.db')
+sqlite_db = SqliteDatabase(os.path.join('.fast', 'fast.db'))
 
 
-class FallbackBaseModel(Model):
+class ClientBaseModel(Model):
     class Meta:
-        database = fallbackdb
+        database = sqlite_db
