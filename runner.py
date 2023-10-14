@@ -25,6 +25,7 @@ def main(args):
     global exploit_name, handler
     handler = SubmitClient()
     exploit_name = args.name
+    ip_format = handler.game.get('team_ip_format')
 
     if args.run:
         exploit_func = exploit_func_from_shell(args.run)
@@ -46,13 +47,16 @@ def main(args):
     attacks = []
     if teams_json_exists():
         teams_json = load_teams_json()
-        all_team_ids = get_all_team_ids(teams_json)
+        all_team_ids = get_all_team_ids(
+            teams_json,
+            handler.game.get('teams_json_key')
+        )
 
         target_team_ids = all_team_ids
 
         if args.targets != ["auto"]:
             target_team_ids = [
-                id for id in target_team_ids if get_team_host(id) in args.targets]
+                id for id in target_team_ids if get_team_host(id, ip_format) in args.targets]
 
         # Remove duplicates if any
         target_team_ids = list(dict.fromkeys(target_team_ids))
@@ -61,13 +65,13 @@ def main(args):
         if collect_flag_ids:
             for team_id in target_team_ids:
                 flag_ids = collect_flag_ids(teams_json, team_id)
-                host = get_team_host(team_id)
+                host = get_team_host(team_id, ip_format)
                 for flag_id in flag_ids:
                     # Ignore completed attacks
                     if Attack.select().where(Attack.host == host, Attack.flag_id == flag_id).count() == 0:
                         attacks.append(Attack(host=host, flag_id=flag_id))
         else:
-            attacks = [Attack(host=get_team_host(team_id))
+            attacks = [Attack(host=get_team_host(team_id, ip_format))
                        for team_id in target_team_ids]
     else:
         if args.targets == ["auto"]:

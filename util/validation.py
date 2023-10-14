@@ -253,6 +253,12 @@ game_schema = {
         "teams_json_url": {
             "type": "string",
             "format": "uri"
+        },
+        "teams_json_key": {
+            "type": "string"
+        },
+        "team_ip_format": {
+            "type": "string"
         }
     },
     "required": ["tick_duration", "flag_format", "team_ip"],
