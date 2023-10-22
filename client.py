@@ -393,7 +393,7 @@ def create_dot_dir():
 
 
 def banner():
-    vers = '1.1.0-czechia'
+    vers = '1.1.0-ecsc'
     print(f"""
 \033[34;1m     .___    ____\033[0m    ______         __ 
 \033[34;1m    /   /\__/   /\033[0m   / ____/_  ____ / /_  
