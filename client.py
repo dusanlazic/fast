@@ -1,6 +1,7 @@
 import os
 import yaml
 import time
+import socket
 import hashlib
 import requests
 import threading
@@ -11,7 +12,7 @@ from handler import SubmitClient
 from util.styler import TextStyler as st
 from util.helpers import seconds_from_now
 from util.log import logger, create_log_dir
-from util.validation import validate_data, validate_targets, connect_schema, exploits_schema
+from util.validation import validate_data, validate_targets, connect_schema, listener_schema, exploits_schema
 from util.hosts import process_targets
 from requests.exceptions import HTTPError, ConnectionError, Timeout, RequestException
 from apscheduler.schedulers.background import BlockingScheduler
@@ -29,6 +30,10 @@ connect = {
     'port': 2023,
     'player': 'anon'
 }
+listener = {
+    'host': '127.0.0.1',
+    'port': 21000
+}
 
 
 def main():
@@ -36,6 +41,7 @@ def main():
     create_log_dir()
     create_dot_dir()
     load_config()
+    start_socket_listener()
     setup_handler()
 
     scheduler = BlockingScheduler()
@@ -70,7 +76,7 @@ def begin_tick():
         threading.Thread(target=start_runner, args=(e,)).start()
 
 
-def start_runner(exploit):
+def start_runner(exploit: ExploitDefinition, immediately=False):
     runner_command = ['python', RUNNER_PATH] + \
         exploit.targets + ['--name', exploit.name]
     if exploit.module:
@@ -90,7 +96,7 @@ def start_runner(exploit):
                 ['--batch-count', str(exploit.batching.count)])
         elif exploit.batching.size:
             runner_command.extend(['--batch-size', str(exploit.batching.size)])
-    if exploit.delay:
+    if exploit.delay and not immediately:
         time.sleep(exploit.delay)
 
     subprocess.run(runner_command, text=True, env={
@@ -204,6 +210,16 @@ def load_config():
                 f"Fix errors in {st.bold('connect')} section in {st.bold('fast.yaml')} and rerun.")
             exit(1)
 
+    logger.info('Loading listener config...')
+    listener_data = yaml_data.get('listener')
+    if listener_data:
+        listener.update(listener_data)
+
+        if not validate_data(listener, listener_schema):
+            logger.error(
+                f"Fix errors in {st.bold('listener')} section in {st.bold('fast.yaml')} and rerun.")
+            exit(1)
+
     # Load and validate exploits config
     logger.info('Checking exploits config...')
     exploits_data = yaml_data.get('exploits', 'MISSING')
@@ -221,7 +237,7 @@ def load_config():
     logger.success('No errors found in exploits config.')
 
 
-def setup_handler(fire_mode=False):
+def setup_handler():
     global handler
 
     # Fetch, apply and persist server's game configuration
@@ -242,8 +258,7 @@ def setup_handler(fire_mode=False):
             f'Game configured successfully. — {st.faint(config_repr)}')
 
         # Synchronize client with server's tick clock
-        if not fire_mode:
-            handler.sync()
+        handler.sync()
     except HTTPError as e:
         if e.response.status_code == 401:
             error = f'Failed to authenticate with the Fast server. Check the password with your teammates and try again.'
@@ -266,6 +281,61 @@ def setup_handler(fire_mode=False):
     # Setup fallback db
     sqlite_db.connect(reuse_if_open=True)
     sqlite_db.create_tables([FallbackFlag, Attack])
+
+
+def start_socket_listener():
+    threading.Thread(target=listen_for_commands, daemon=True).start()
+
+
+def listen_for_commands():
+    host = listener['host']
+    port = listener['port']
+
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.bind((host, port))
+    server.listen()
+    logger.success(
+        f"Socket server is listening for commands on {st.color(f'{host}:{port}', 'cyan')}...")
+
+    while True:
+        conn, addr = server.accept()
+        client_thread = threading.Thread(
+            target=handle_command, args=(conn, addr))
+        client_thread.start()
+
+
+def handle_command(conn, addr):
+    with conn:
+        logger.info(f"Connection with {addr} established.")
+        while True:
+            command = conn.recv(1024).decode('utf-8')
+            if not command:
+                conn.sendall(b'Missing command.\n')
+                break
+
+            tokens = command.split()
+            if not tokens:
+                conn.sendall(b'Missing command.\n')
+                break
+
+            if tokens[0] == "exit":
+                conn.sendall(b'Exiting...\n')
+                break
+            elif tokens[0] == "fire" and len(tokens) > 1:
+                exploits = load_exploit_definitions()
+                selected_exploits = [
+                    e for e in exploits if e.name in tokens[1:]]
+                logger.info(
+                    f"Immediately starting {st.bold(len(selected_exploits))} exploits...")
+                for e in selected_exploits:
+                    threading.Thread(target=start_runner,
+                                     args=(e, True)).start()
+                conn.sendall(
+                    f'Started {len(selected_exploits)} exploits.\n'.encode('utf-8'))
+                break
+            conn.sendall(b'Unknown command?\n')
+            break
+        logger.info(f"Connection with {addr} closed.")
 
 
 def fetch_teams_json():

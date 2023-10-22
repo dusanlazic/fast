@@ -165,6 +165,22 @@ connect_schema = {
 }
 
 
+listener_schema = {
+    "type": "object",
+    "properties": {
+        "host": {
+            "type": "string",
+            "format": "hostname",
+        },
+        "port": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+        }
+    }
+}
+
+
 exploit_schema = {
     "type": "object",
     "properties": {

@@ -1,11 +1,11 @@
 from gevent import monkey
 monkey.patch_all()
 import os
+import socket
 import argparse
-import threading
 from util.log import logger
 from util.styler import TextStyler as st
-from client import load_exploit_definitions, load_config, setup_handler, start_runner
+from client import load_exploit_definitions, load_config, setup_handler, start_runner, listener
 from server import setup_database
 from database import db
 from models import Flag
@@ -20,22 +20,20 @@ def fire():
     args = parser.parse_args()
 
     load_config()
-    setup_handler(fire_mode=True)
-    exploits = load_exploit_definitions()
+    host = listener['host']
+    port = listener['port']
 
-    selected_exploits = [e for e in exploits if e.name in args.names]
+    command = f"fire {' '.join(args.names)}"
 
-    invalid_names = [n for n in args.names if n not in [
-        e.name for e in selected_exploits]]
-    if invalid_names:
-        logger.error(
-            f"Exploits with the following names not found: {st.bold(', '.join(invalid_names))}")
-        logger.info(
-            f"Available exploits: {st.bold(', '.join([e.name for e in exploits]))}")
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        try:
+            s.connect((host, port))
+            s.sendall(command.encode('utf-8'))
 
-    for exploit in selected_exploits:
-        exploit.delay = 0  # Ignore delay and run instantly
-        threading.Thread(target=start_runner, args=(exploit,)).start()
+            response = s.recv(1024).decode('utf-8')
+            logger.info(response)
+        except Exception as e:
+            logger.error(f"Error: {e}")
 
 
 def submit():
