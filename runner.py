@@ -12,7 +12,7 @@ from importlib import import_module
 from handler import SubmitClient
 from models import Batching, Attack
 from util.styler import TextStyler as st
-from util.log import logger, log_error, log_warning
+from util.log import logger, log_error, log_response
 from util.teams import load_teams_json, teams_json_exists, get_all_team_ids, get_team_host
 from database import sqlite_db
 
@@ -178,7 +178,7 @@ def exploit_wrapper(exploit_func, attack: Attack):
         else:
             logger.warning(
                 f"{st.bold(exploit_name)} retrieved no flags from {st.bold(attack.host)}. — {st.color(repr(truncate(response_text, 50)), 'yellow')}")
-            log_warning(exploit_name, attack.host, response_text)
+            log_response(exploit_name, attack.host, response_text)
     except Exception as e:
         exception_name = '.'.join([type(e).__module__, type(e).__qualname__])
         logger.error(

@@ -11,7 +11,7 @@ from models import ExploitDefinition, FallbackFlag, Attack, Batching, DigestValu
 from handler import SubmitClient
 from util.styler import TextStyler as st
 from util.helpers import seconds_from_now
-from util.log import logger, create_log_dir
+from util.log import logger, create_log_dir, delete_old_logs
 from util.validation import validate_data, validate_targets, connect_schema, listener_schema, exploits_schema
 from util.hosts import process_targets
 from requests.exceptions import HTTPError, ConnectionError, Timeout, RequestException
@@ -74,6 +74,8 @@ def begin_tick():
 
     for e in exploit_defs:
         threading.Thread(target=start_runner, args=(e,)).start()
+
+    delete_old_logs()
 
 
 def start_runner(exploit: ExploitDefinition, immediately=False):
